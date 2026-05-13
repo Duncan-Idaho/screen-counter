@@ -23,6 +23,10 @@ body {
 .app {
   --player-count: 1;
   --round-count: 1;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
   --size-scale-min: 0.68;
   --size-scale-step: 0.05;
   --primary-size-scale-min: 0.78;
@@ -63,14 +67,17 @@ body {
   width: min(1600px, 100vw);
   height: 100dvh;
   margin: 0 auto;
-  padding: calc(1.25rem * var(--size-scale));
+  padding-top: calc(1.25rem * var(--size-scale) + var(--safe-area-top));
+  padding-bottom: calc(1.25rem * var(--size-scale) + var(--safe-area-bottom));
+  padding-left: calc(1.25rem * var(--size-scale) + var(--safe-area-left));
+  padding-right: calc(1.25rem * var(--size-scale) + var(--safe-area-right));
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .panel {
-  height: calc(100dvh - (2.5rem * var(--size-scale)));
+  flex: 1;
   min-height: 0;
   padding: calc(1rem * var(--size-scale));
   border-radius: calc(0.9rem * var(--size-scale));
@@ -351,11 +358,10 @@ button:disabled {
 
 @media (max-width: 1024px) {
   .shell {
-    padding: 0.85rem;
-  }
-
-  .panel {
-    height: calc(100dvh - (1.7rem * var(--size-scale)));
+    padding-top: calc(0.85rem + var(--safe-area-top));
+    padding-bottom: calc(0.85rem + var(--safe-area-bottom));
+    padding-left: calc(0.85rem + var(--safe-area-left));
+    padding-right: calc(0.85rem + var(--safe-area-right));
   }
 }
 
