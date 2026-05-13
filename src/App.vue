@@ -6,7 +6,7 @@ const game = useGameStore()
 const newPlayerName = ref('')
 
 const backgroundImageUrl =
-  'https://github.com/user-attachments/assets/b3f18686-7bb5-42bd-aeab-5c405cd7d2e5'
+  'https://github.com/user-attachments/assets/5049342e-62fa-4d84-8611-83794be2216f'
 
 const columns = computed(() => {
   const count = game.players.length
