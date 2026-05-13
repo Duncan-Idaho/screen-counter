@@ -23,10 +23,18 @@ body {
 .app {
   --player-count: 1;
   --round-count: 1;
-  --size-scale: clamp(0.68, calc(1 - ((var(--player-count) - 1) * 0.05)), 1);
+  --size-scale-min: 0.68;
+  --size-scale-step: 0.05;
+  --total-size-scale-min: 0.6;
+  --total-size-scale-step: 0.03;
+  --size-scale: clamp(
+    var(--size-scale-min),
+    calc(1 - ((var(--player-count) - 1) * var(--size-scale-step))),
+    1
+  );
   --total-size-scale: clamp(
-    0.6,
-    calc(var(--size-scale) - ((var(--round-count) - 1) * 0.03)),
+    var(--total-size-scale-min),
+    calc(var(--size-scale) - ((var(--round-count) - 1) * var(--total-size-scale-step))),
     1
   );
   height: 100dvh;
