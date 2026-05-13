@@ -102,9 +102,8 @@ button {
   font: inherit;
   border: 1px solid transparent;
   border-radius: calc(0.45rem * var(--size-scale));
-  padding:
-    clamp(0.45rem, calc(0.65rem * var(--size-scale)), 0.65rem)
-    clamp(0.6rem, calc(0.8rem * var(--size-scale)), 0.8rem);
+  padding-block: clamp(0.45rem, calc(0.65rem * var(--size-scale)), 0.65rem);
+  padding-inline: clamp(0.6rem, calc(0.8rem * var(--size-scale)), 0.8rem);
 }
 
 input {
@@ -141,9 +140,8 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   gap: calc(0.75rem * var(--size-scale));
-  padding:
-    clamp(0.45rem, calc(0.7rem * var(--size-scale)), 0.7rem)
-    clamp(0.6rem, calc(0.8rem * var(--size-scale)), 0.8rem);
+  padding-block: clamp(0.45rem, calc(0.7rem * var(--size-scale)), 0.7rem);
+  padding-inline: clamp(0.6rem, calc(0.8rem * var(--size-scale)), 0.8rem);
   border-radius: calc(0.45rem * var(--size-scale));
   font-size: clamp(0.85rem, calc(1rem * var(--size-scale)), 1rem);
   background: var(--card-bg);
@@ -196,9 +194,8 @@ button:disabled {
 
 .score-card h3 {
   grid-column: 1 / -1;
-  padding:
-    clamp(0.45rem, calc(0.7rem * var(--size-scale)), 0.7rem)
-    clamp(0.6rem, calc(0.85rem * var(--size-scale)), 0.85rem);
+  padding-block: clamp(0.45rem, calc(0.7rem * var(--size-scale)), 0.7rem);
+  padding-inline: clamp(0.6rem, calc(0.85rem * var(--size-scale)), 0.85rem);
   border-bottom: 1px solid var(--card-border);
   font-weight: 700;
   font-size: clamp(0.9rem, calc(1.15rem * var(--size-scale)), 1.15rem);
@@ -281,9 +278,8 @@ button:disabled {
   gap: calc(0.3rem * var(--total-size-scale));
   align-items: baseline;
   justify-content: center;
-  padding:
-    clamp(0.2rem, calc(0.35rem * var(--total-size-scale)), 0.35rem)
-    clamp(0.3rem, calc(0.45rem * var(--total-size-scale)), 0.45rem);
+  padding-block: clamp(0.2rem, calc(0.35rem * var(--total-size-scale)), 0.35rem);
+  padding-inline: clamp(0.3rem, calc(0.45rem * var(--total-size-scale)), 0.45rem);
   border-radius: calc(0.35rem * var(--total-size-scale));
   background: rgba(255, 255, 255, 0.08);
   font-size: clamp(0.72rem, calc(0.95rem * var(--total-size-scale)), 0.95rem);
