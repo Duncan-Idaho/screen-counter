@@ -112,7 +112,7 @@ function addPlayer() {
             <dl class="round-list">
               <template v-for="(score, index) in player.scores" :key="`${player.id}-${index}`">
                 <div class="round-item">
-                  <dt>{{ index + 1 }}:</dt>
+                  <dt>R{{ index + 1 }}:</dt>
                   <dd>{{ score }}</dd>
                 </div>
               </template>
