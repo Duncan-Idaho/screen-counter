@@ -29,7 +29,8 @@ body {
   --primary-size-scale-step: 0.03;
   --total-size-scale-min: 0.6;
   --total-size-scale-step: 0.03;
-  --round-count-impact-max: 6;
+  --default-visible-round-count: 6;
+  --round-count-impact-max: var(--default-visible-round-count);
   --score-controls-width: 68px;
   --round-score-font-size-max: 4.9rem;
   --grand-total-font-size-min: 1.7rem;
@@ -94,12 +95,12 @@ p {
   margin: 0;
 }
 
-h1 {
+.app h1 {
   font-size: clamp(1.2rem, calc(2rem * var(--size-scale)), 2rem);
   line-height: 1.15;
 }
 
-h2 {
+.app h2 {
   font-size: clamp(1.05rem, calc(1.55rem * var(--size-scale)), 1.55rem);
   line-height: 1.15;
 }
@@ -111,7 +112,10 @@ h2 {
 }
 
 input,
-button:not(.plus):not(.minus):not(.round-score) {
+.setup-form button,
+.setup-actions button,
+.actions button,
+.players-list button {
   font: inherit;
   border: 1px solid transparent;
   border-radius: calc(0.45rem * var(--size-scale));
