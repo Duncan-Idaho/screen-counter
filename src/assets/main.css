@@ -9,13 +9,14 @@
   --danger-bg: rgba(168, 65, 44, 0.82);
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
+  --score-control-width: 4.2vmax;
 }
 
 body {
   height: 100dvh;
   margin: 0;
   overflow: hidden;
-  font-size: clamp(12px, 1.35vmax, 24px);
+  font-size: clamp(13px, 1.2vmax, 20px);
   line-height: 1.3;
 }
 
@@ -172,7 +173,7 @@ h3 {
   overflow: hidden;
   background: var(--card-bg);
   display: grid;
-  grid-template-columns: 1fr 4.2vmax;
+  grid-template-columns: 1fr var(--score-control-width);
   grid-template-rows: auto 1fr;
   min-height: 0;
 }
@@ -271,6 +272,10 @@ h3 {
 }
 
 @media (orientation: portrait) {
+  :root {
+    --score-control-width: 5.4vmax;
+  }
+
   .panel-header {
     flex-direction: column;
     align-items: stretch;
@@ -286,7 +291,7 @@ h3 {
   }
 
   .score-card {
-    grid-template-columns: 1fr 5.4vmax;
+    grid-template-columns: 1fr var(--score-control-width);
   }
 
   .round-list {
