@@ -111,7 +111,7 @@ h2 {
 }
 
 input,
-button {
+button:not(.plus):not(.minus):not(.round-score) {
   font: inherit;
   border: 1px solid transparent;
   border-radius: calc(0.45rem * var(--size-scale));
@@ -172,7 +172,7 @@ button:disabled {
     0.8rem
   );
   border-radius: calc(0.45rem * var(--size-scale));
-  font-size: clamp(0.85rem, calc(1rem * var(--size-scale)), 1rem);
+  font-size: max(0.85rem, calc(1rem * var(--size-scale)));
   background: var(--card-bg);
 }
 
@@ -283,7 +283,8 @@ button:disabled {
   font-size: clamp(1.3rem, calc(2rem * var(--size-scale)), 2rem);
   color: #fff;
   background: rgba(84, 42, 18, 0.65);
-  padding: 0;
+  padding-block: 0;
+  padding-inline: 0;
 }
 
 .score-controls .plus {
