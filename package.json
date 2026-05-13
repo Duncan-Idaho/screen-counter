@@ -15,6 +15,7 @@
     "lint:eslint": "eslint . --fix --cache"
   },
   "dependencies": {
+    "@vueuse/core": "^14.3.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.32"
   },

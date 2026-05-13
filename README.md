@@ -7,6 +7,7 @@ Fullscreen karaoke score counter built with Vue 3, TypeScript, and Pinia.
 - Setup screen to add/remove players and start a fresh game or resume an existing one.
 - Round screen with responsive team blocks, per-round score, total score, and +/- controls.
 - Total screen with team totals and round-by-round score history in a 3-column grid.
+- Automatic game-state persistence in browser local storage via VueUse.
 - Full-screen bar backdrop based on `https://lechaperonrouge.pub/` via an external capture URL.
 - GitHub Pages deployment workflow in `.github/workflows/deploy-pages.yml`.
 

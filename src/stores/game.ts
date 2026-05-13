@@ -1,5 +1,6 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
+import { useLocalStorage } from '@vueuse/core'
 
 export type ScreenName = 'setup' | 'round' | 'total'
 
@@ -13,13 +14,53 @@ const MIN_SCORE = 0
 const MAX_SCORE = 99
 
 export const useGameStore = defineStore('game', () => {
-  const players = ref<Player[]>([])
-  const currentRound = ref(0)
-  const screen = ref<ScreenName>('setup')
-  const nextPlayerId = ref(1)
+  const players = useLocalStorage<Player[]>('screen-counter:players', [])
+  const currentRound = useLocalStorage('screen-counter:current-round', 0)
+  const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
+  const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
+
+  function normalizePlayers(rawPlayers: unknown) {
+    const source = Array.isArray(rawPlayers) ? rawPlayers : []
+
+    return source
+      .filter((player) => Number.isInteger((player as Player).id) && (player as Player).id > 0)
+      .map((player) => ({
+        id: (player as Player).id,
+        name: String((player as Player).name ?? '').trim(),
+        scores:
+          Array.isArray((player as Player).scores) && (player as Player).scores.length > 0
+            ? (player as Player).scores.map((score) =>
+                Math.max(MIN_SCORE, Math.min(MAX_SCORE, Number(score) || 0)),
+              )
+            : [0],
+      }))
+      .filter((player) => player.name.length > 0)
+  }
+
+  function sanitizeState() {
+    players.value = normalizePlayers(players.value)
+    currentRound.value = Math.max(0, Math.floor(Number(currentRound.value) || 0))
+
+    if (!['setup', 'round', 'total'].includes(screen.value)) {
+      screen.value = 'setup'
+    }
+
+    const maxPlayerId = players.value.reduce((max, player) => Math.max(max, player.id), 0)
+    nextPlayerId.value = Math.max(Math.floor(Number(nextPlayerId.value) || 1), maxPlayerId + 1, 1)
+
+    if (players.value.length === 0) {
+      currentRound.value = 0
+      screen.value = 'setup'
+      return
+    }
+
+    ensureRound(currentRound.value)
+  }
+
+  sanitizeState()
 
   function addPlayer(name: string) {
     const pseudo = name.trim()

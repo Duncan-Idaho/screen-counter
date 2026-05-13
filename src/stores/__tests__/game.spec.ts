@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import { useGameStore } from '../game'
 
 function firstPlayer(game: ReturnType<typeof useGameStore>) {
@@ -11,6 +12,7 @@ function firstPlayer(game: ReturnType<typeof useGameStore>) {
 
 describe('game store', () => {
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
   })
 
@@ -70,5 +72,21 @@ describe('game store', () => {
     }
 
     expect(firstPlayer(game).scores[0]).toBe(0)
+  })
+
+  it('restores persisted game state from local storage', async () => {
+    const firstSessionStore = useGameStore()
+
+    firstSessionStore.addPlayer('Alia')
+    firstSessionStore.incrementScore(firstPlayer(firstSessionStore).id)
+    firstSessionStore.nextRound()
+    await nextTick()
+
+    setActivePinia(createPinia())
+    const secondSessionStore = useGameStore()
+
+    expect(secondSessionStore.players.map((player) => player.name)).toEqual(['Alia'])
+    expect(secondSessionStore.currentRound).toBe(1)
+    expect(secondSessionStore.players[0]?.scores).toEqual([1, 0])
   })
 })
