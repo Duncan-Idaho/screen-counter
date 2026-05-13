@@ -30,6 +30,10 @@ body {
   --total-size-scale-min: 0.6;
   --total-size-scale-step: 0.03;
   --round-count-impact-max: 6;
+  --score-controls-width: 68px;
+  --round-score-font-size-max: 4.9rem;
+  --grand-total-font-size-min: 1.7rem;
+  --grand-total-font-size-max: 5rem;
   --round-impact-count: min(var(--round-count), var(--round-count-impact-max));
   --size-scale: clamp(
     var(--size-scale-min),
@@ -213,7 +217,7 @@ button:disabled {
   overflow: hidden;
   background: var(--card-bg);
   display: grid;
-  grid-template-columns: 1fr calc(68px * var(--size-scale));
+  grid-template-columns: 1fr calc(var(--score-controls-width) * var(--size-scale));
   grid-template-rows: auto 1fr;
 }
 
@@ -249,9 +253,9 @@ button:disabled {
   background: transparent;
   color: inherit;
   font-size: clamp(
-    calc(4.9rem * var(--primary-size-scale-min)),
-    calc(4.9rem * var(--primary-size-scale)),
-    4.9rem
+    calc(var(--round-score-font-size-max) * var(--primary-size-scale-min)),
+    calc(var(--round-score-font-size-max) * var(--primary-size-scale)),
+    var(--round-score-font-size-max)
   );
   font-weight: 800;
   line-height: 1;
@@ -297,7 +301,11 @@ button:disabled {
 
 .grand-total {
   text-align: center;
-  font-size: clamp(1.7rem, calc(5rem * var(--total-size-scale)), 5rem);
+  font-size: clamp(
+    var(--grand-total-font-size-min),
+    calc(var(--grand-total-font-size-max) * var(--total-size-scale)),
+    var(--grand-total-font-size-max)
+  );
   font-weight: 800;
   line-height: 1.05;
   margin: calc(0.8rem * var(--total-size-scale)) 0;
