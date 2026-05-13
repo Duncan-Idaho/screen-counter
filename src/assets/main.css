@@ -25,16 +25,25 @@ body {
   --round-count: 1;
   --size-scale-min: 0.68;
   --size-scale-step: 0.05;
+  --primary-size-scale-min: 0.78;
+  --primary-size-scale-step: 0.03;
   --total-size-scale-min: 0.6;
   --total-size-scale-step: 0.03;
+  --round-count-impact-max: 6;
+  --round-impact-count: min(var(--round-count), var(--round-count-impact-max));
   --size-scale: clamp(
     var(--size-scale-min),
     calc(1 - ((var(--player-count) - 1) * var(--size-scale-step))),
     1
   );
+  --primary-size-scale: clamp(
+    var(--primary-size-scale-min),
+    calc(1 - ((var(--player-count) - 1) * var(--primary-size-scale-step))),
+    1
+  );
   --total-size-scale: clamp(
     var(--total-size-scale-min),
-    calc(var(--size-scale) - ((var(--round-count) - 1) * var(--total-size-scale-step))),
+    calc(var(--size-scale) - ((var(--round-impact-count) - 1) * var(--total-size-scale-step))),
     1
   );
   height: 100dvh;
@@ -239,7 +248,11 @@ button:disabled {
   border: none;
   background: transparent;
   color: inherit;
-  font-size: clamp(1.75rem, calc(4.9rem * var(--size-scale)), 4.9rem);
+  font-size: clamp(
+    calc(4.9rem * var(--primary-size-scale-min)),
+    calc(4.9rem * var(--primary-size-scale)),
+    4.9rem
+  );
   font-weight: 800;
   line-height: 1;
   padding: 0;
@@ -314,7 +327,7 @@ button:disabled {
   );
   border-radius: calc(0.35rem * var(--total-size-scale));
   background: rgba(255, 255, 255, 0.08);
-  font-size: clamp(0.72rem, calc(0.95rem * var(--total-size-scale)), 0.95rem);
+  font-size: clamp(0.75rem, calc(0.95rem * var(--total-size-scale)), 0.95rem);
   line-height: 1.1;
 }
 
