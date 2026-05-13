@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useGameStore } from './stores/game'
 
 const game = useGameStore()
@@ -7,24 +7,6 @@ const newPlayerName = ref('')
 
 const backgroundImageUrl =
   'https://github.com/user-attachments/assets/5049342e-62fa-4d84-8611-83794be2216f'
-
-const columns = computed(() => {
-  const count = game.players.length
-
-  if (count <= 2) {
-    return Math.max(count, 1)
-  }
-
-  if (count <= 4) {
-    return 2
-  }
-
-  if (count <= 6) {
-    return 3
-  }
-
-  return 4
-})
 
 function addPlayer() {
   game.addPlayer(newPlayerName.value)
@@ -62,7 +44,7 @@ function addPlayer() {
         </div>
       </section>
 
-      <section v-else-if="game.screen === 'round'" class="panel">
+      <section v-else-if="game.screen === 'round'" class="panel round-panel">
         <header class="panel-header">
           <h2>Round {{ game.roundNumber }}</h2>
           <div class="actions">
@@ -72,7 +54,7 @@ function addPlayer() {
           </div>
         </header>
 
-        <div class="score-grid" :style="{ '--columns': String(columns) }">
+        <div class="score-grid">
           <article v-for="player in game.players" :key="player.id" class="score-card">
             <h3>{{ player.name }}</h3>
 
@@ -96,7 +78,7 @@ function addPlayer() {
         </div>
       </section>
 
-      <section v-else class="panel">
+      <section v-else class="panel total-panel">
         <header class="panel-header">
           <h2>Totals</h2>
           <div class="actions">
@@ -105,7 +87,7 @@ function addPlayer() {
           </div>
         </header>
 
-        <div class="score-grid" :style="{ '--columns': String(columns) }">
+        <div class="score-grid">
           <article v-for="player in game.players" :key="player.id" class="score-card total-card">
             <h3>{{ player.name }}</h3>
             <p class="grand-total">{{ game.getTotalScore(player) }}</p>
