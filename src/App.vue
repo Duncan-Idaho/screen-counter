@@ -26,6 +26,17 @@ const columns = computed(() => {
   return 4
 })
 
+const appStyle = computed(() => ({
+  '--bg-image': `url('${backgroundImageUrl}')`,
+  '--player-count': String(Math.max(game.players.length, 1)),
+  '--round-count': String(
+    Math.max(
+      1,
+      ...game.players.map((player) => player.scores.length),
+    ),
+  ),
+}))
+
 function addPlayer() {
   game.addPlayer(newPlayerName.value)
   newPlayerName.value = ''
@@ -33,7 +44,7 @@ function addPlayer() {
 </script>
 
 <template>
-  <div class="app" :style="{ '--bg-image': `url('${backgroundImageUrl}')` }">
+  <div class="app" :style="appStyle">
     <main class="shell">
       <section v-if="game.screen === 'setup'" class="panel setup-panel">
         <h1>Karaoke Score Counter</h1>
