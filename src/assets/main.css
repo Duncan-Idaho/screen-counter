@@ -23,7 +23,7 @@ body {
 .app {
   --player-count: 1;
   --round-count: 1;
-  --size-scale: clamp(0.68, calc(1.16 - ((var(--player-count) - 1) * 0.05)), 1);
+  --size-scale: clamp(0.68, calc(1 - ((var(--player-count) - 1) * 0.05)), 1);
   --total-size-scale: clamp(
     0.6,
     calc(var(--size-scale) - ((var(--round-count) - 1) * 0.03)),
@@ -264,7 +264,7 @@ button:disabled {
 .round-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: calc(0.35rem * var(--total-size-scale));
+  gap: calc(0.4rem * var(--total-size-scale));
   padding: 0 calc(0.75rem * var(--total-size-scale)) calc(0.8rem * var(--total-size-scale));
 }
 
