@@ -102,8 +102,7 @@ button {
   padding: 0.65vmax 0.8vmax;
 }
 
-input,
-select {
+input {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.95);
   color: #2b1a11;
@@ -183,9 +182,32 @@ button:disabled {
   display: flex;
 }
 
+/* `appearance: none` drops the white native control so the closed select can
+   take the button palette; the caret it also removes is drawn back in. */
 .language-select {
   flex: 0 1 22vmax;
   cursor: pointer;
+  appearance: none;
+  font-weight: 700;
+  color: #1f130b;
+  background-color: var(--button-bg);
+  padding-right: 2.6vmax;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%231f130b' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9vmax center;
+  background-size: 0.9vmax;
+}
+
+.language-select:hover {
+  background-color: var(--button-bg-hover);
+  color: #f7f2ec;
+}
+
+/* The native option popup is drawn by the OS and won't inherit the translucent
+   theme, so pin an opaque on-theme pair it can render. */
+.language-select option {
+  color: #1f130b;
+  background-color: #e8c9a6;
 }
 
 .panel-header {
