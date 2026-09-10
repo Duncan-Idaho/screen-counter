@@ -1,12 +1,23 @@
 @import './base.css';
 
 :root {
+  /* Themeable palette. These are the defaults; the settings store overrides
+     them by binding the same names inline on `.app` (like --bg-image). */
+  --app-text: #f7f2ec;
   --overlay: rgba(28, 18, 12, 0.65);
+  --panel-bg: rgba(0, 0, 0, 0.24);
   --card-bg: rgba(15, 9, 6, 0.78);
   --card-border: rgba(255, 255, 255, 0.22);
   --button-bg: rgba(205, 135, 70, 0.86);
-  --button-bg-hover: rgba(132, 92, 54, 0.95);
+  --control-bg: rgba(84, 42, 18, 0.65);
   --danger-bg: rgba(168, 65, 44, 0.82);
+
+  /* Hovers are derived so a custom theme needs one picker per button, not two.
+     The directions differ on purpose, matching the original hand-picked values:
+     buttons darken on hover, the score controls lighten. */
+  --button-bg-hover: color-mix(in srgb, var(--button-bg) 62%, black);
+  --control-bg-hover: color-mix(in srgb, var(--control-bg) 80%, white);
+
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
   --score-control-width: 25%;
@@ -29,7 +40,7 @@ body {
   background-image: linear-gradient(var(--overlay), var(--overlay)), var(--bg-image);
   background-position: center;
   background-size: cover;
-  color: #f7f2ec;
+  color: var(--app-text);
 }
 
 .shell {
@@ -44,17 +55,25 @@ body {
   min-height: 0;
   padding: var(--ui-gap);
   border-radius: var(--ui-radius);
-  background: rgba(0, 0, 0, 0.24);
+  background: var(--panel-bg);
   backdrop-filter: blur(1px);
   overflow: hidden;
 }
 
-.setup-panel {
+/* The app is locked to the viewport, so these are the only two panels allowed to
+   scroll: their content is a list that legitimately outgrows a short screen. */
+.setup-panel,
+.settings-panel {
   display: flex;
   flex-direction: column;
   gap: var(--ui-gap);
-  max-width: 80vmax;
   overflow: auto;
+}
+
+.theme-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5vmax;
 }
 
 h1,
@@ -262,7 +281,7 @@ h3 {
   border-radius: 0;
   font-size: 20cqmin;
   color: #fff;
-  background: rgba(84, 42, 18, 0.65);
+  background: var(--control-bg);
 }
 
 .score-controls .plus {
@@ -270,7 +289,7 @@ h3 {
 }
 
 .score-controls button:hover {
-  background: rgba(120, 65, 35, 0.75);
+  background: var(--control-bg-hover);
 }
 
 .total-card {
@@ -352,5 +371,10 @@ h3 {
 
   .score-card:not(.total-card) {
     grid-template-columns: 1fr var(--score-control-width);
+  }
+
+  .theme-form {
+    /* One column when the screen is narrow: each picker row needs its full width. */
+    grid-template-columns: 1fr;
   }
 }
