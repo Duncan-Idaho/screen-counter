@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
+import { fileToBackgroundDataUrl, isValidBackgroundValue } from '@/lib/backgroundImage'
 
 export type ScreenName = 'setup' | 'round' | 'total'
 
@@ -18,9 +19,31 @@ export const useGameStore = defineStore('game', () => {
   const currentRound = useLocalStorage('screen-counter:current-round', 0)
   const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
   const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
+  const backgroundImage = useLocalStorage<string>('screen-counter:bg-image', '')
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
+
+  // Split `count` cells into a landscape-biased grid: `minor` is the smaller
+  // axis, `major` the larger (major >= minor). Used for both the player card
+  // grid and the per-round breakdown; main.css maps major->columns / minor->rows
+  // in landscape and swaps them in portrait.
+  function splitGrid(count: number) {
+    const n = Math.max(1, count)
+    const minor = Math.ceil(Math.sqrt(n / 2))
+    return { major: Math.ceil(n / minor), minor }
+  }
+
+  const gridMajor = computed(() => splitGrid(players.value.length).major)
+  const gridMinor = computed(() => splitGrid(players.value.length).minor)
+
+  // Number of played rounds (longest `scores` array, guarded to >= 1) and the
+  // grid the total screen splits its per-round chips into so they always fit.
+  const roundCount = computed(() =>
+    Math.max(1, ...players.value.map((player) => player.scores.length), currentRound.value + 1),
+  )
+  const roundMajor = computed(() => splitGrid(roundCount.value).major)
+  const roundMinor = computed(() => splitGrid(roundCount.value).minor)
 
   function normalizePlayers(rawPlayers: unknown) {
     const source = Array.isArray(rawPlayers) ? rawPlayers : []
@@ -46,6 +69,10 @@ export const useGameStore = defineStore('game', () => {
 
     if (!['setup', 'round', 'total'].includes(screen.value)) {
       screen.value = 'setup'
+    }
+
+    if (backgroundImage.value && !isValidBackgroundValue(backgroundImage.value)) {
+      backgroundImage.value = ''
     }
 
     const maxPlayerId = players.value.reduce((max, player) => Math.max(max, player.id), 0)
@@ -184,10 +211,31 @@ export const useGameStore = defineStore('game', () => {
     return player.scores.reduce((sum, score) => sum + score, 0)
   }
 
+  async function setBackgroundImage(file: File) {
+    const previous = backgroundImage.value
+
+    try {
+      backgroundImage.value = await fileToBackgroundDataUrl(file)
+    } catch (error) {
+      backgroundImage.value = previous
+      throw error
+    }
+  }
+
+  function clearBackgroundImage() {
+    backgroundImage.value = ''
+  }
+
   return {
     players,
+    backgroundImage,
     currentRound,
     roundNumber,
+    roundCount,
+    roundMajor,
+    roundMinor,
+    gridMajor,
+    gridMinor,
     screen,
     hasPlayers,
     addPlayer,
@@ -202,5 +250,7 @@ export const useGameStore = defineStore('game', () => {
     goToSetup,
     getCurrentRoundScore,
     getTotalScore,
+    setBackgroundImage,
+    clearBackgroundImage,
   }
 })

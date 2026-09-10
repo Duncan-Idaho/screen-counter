@@ -5,21 +5,27 @@
   --card-bg: rgba(15, 9, 6, 0.78);
   --card-border: rgba(255, 255, 255, 0.22);
   --button-bg: rgba(205, 135, 70, 0.86);
-  --button-bg-hover: rgba(222, 154, 91, 0.95);
+  --button-bg-hover: rgba(132, 92, 54, 0.95);
   --danger-bg: rgba(168, 65, 44, 0.82);
+  --ui-gap: 0.9vmax;
+  --ui-radius: 0.7vmax;
+  --score-control-width: 25%;
 }
 
 body {
-  min-height: 100vh;
+  height: 100dvh;
   margin: 0;
+  overflow: hidden;
+  font-size: clamp(13px, 1.2vmax, 20px);
+  line-height: 1.3;
 }
 
 #app {
-  min-height: 100vh;
+  height: 100dvh;
 }
 
 .app {
-  min-height: 100vh;
+  height: 100dvh;
   background-image: linear-gradient(var(--overlay), var(--overlay)), var(--bg-image);
   background-position: center;
   background-size: cover;
@@ -27,25 +33,28 @@ body {
 }
 
 .shell {
-  width: min(1600px, 100vw);
-  min-height: 100vh;
+  width: 100vw;
+  height: 100dvh;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: var(--ui-gap);
 }
 
 .panel {
-  min-height: calc(100vh - 2.5rem);
-  padding: 1rem;
-  border-radius: 0.9rem;
+  height: 100%;
+  min-height: 0;
+  padding: var(--ui-gap);
+  border-radius: var(--ui-radius);
   background: rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(1px);
+  overflow: hidden;
 }
 
 .setup-panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  max-width: 900px;
+  gap: var(--ui-gap);
+  max-width: 80vmax;
+  overflow: auto;
 }
 
 h1,
@@ -57,16 +66,20 @@ p {
 
 .setup-form {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.6vmax;
   grid-template-columns: 1fr auto;
+}
+
+.background-error {
+  color: #ffd7c7;
 }
 
 input,
 button {
   font: inherit;
   border: 1px solid transparent;
-  border-radius: 0.45rem;
-  padding: 0.65rem 0.8rem;
+  border-radius: 0.45vmax;
+  padding: 0.65vmax 0.8vmax;
 }
 
 input {
@@ -93,8 +106,9 @@ button:disabled {
 
 .players-list {
   list-style: none;
-  display: grid;
-  gap: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6vmax;
   padding: 0;
 }
 
@@ -102,9 +116,9 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 0.45rem;
+  gap: 0.7vmax;
+  padding: 0.7vmax 0.8vmax;
+  border-radius: 0.45vmax;
   background: var(--card-bg);
 }
 
@@ -116,16 +130,59 @@ button:disabled {
 .setup-actions,
 .actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6vmax;
   flex-wrap: wrap;
+}
+
+/* Start game / Resume share the row 50/50 and each go full width once wrapped. */
+.setup-actions button {
+  flex: 1 1 8vmax;
+}
+
+/* Horizontal rule separating the launch buttons from the background picker. */
+.setup-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--card-border);
+}
+
+.background-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6vmax;
+}
+
+.background-form > button {
+  flex: 1 1 8vmax;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.8rem;
-  margin-bottom: 1rem;
+  gap: 0.8vmax;
+  margin-bottom: 0;
+}
+
+.round-panel,
+.total-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: var(--ui-gap);
+}
+
+h1 {
+  font-size: clamp(20px, 2.1vmax, 40px);
+}
+
+h2 {
+  font-size: clamp(18px, 1.8vmax, 34px);
+}
+
+h3 {
+  font-size: clamp(16px, 1.4vmax, 28px);
 }
 
 .actions {
@@ -134,49 +191,62 @@ button:disabled {
 
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
-  gap: 1rem;
+  /* Columns/rows scale with the player count (--grid-major/--grid-minor, set by
+     the store). Landscape puts the larger axis on columns; minmax(0, 1fr) keeps
+     every card inside the locked viewport without scrolling. */
+  grid-template-columns: repeat(var(--grid-major, 4), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-minor, 2), minmax(0, 1fr));
+  gap: var(--ui-gap);
+  min-height: 0;
 }
 
 .score-card {
-  min-height: 220px;
   border: 1px solid var(--card-border);
-  border-radius: 0.7rem;
+  border-radius: var(--ui-radius);
   overflow: hidden;
   background: var(--card-bg);
   display: grid;
-  grid-template-columns: 1fr 68px;
+  grid-template-columns: 1fr var(--score-control-width);
   grid-template-rows: auto 1fr;
+  min-height: 0;
+  /* Query container so card text scales with the card box (which shrinks as
+     players are added), not just the viewport. cqmin = 1% of the card's
+     shorter side, so type stays proportional in both orientations. */
+  container-type: size;
 }
 
 .score-card h3 {
   grid-column: 1 / -1;
-  padding: 0.7rem 0.85rem;
+  padding: 0.55vmax 0.75vmax;
   border-bottom: 1px solid var(--card-border);
+  font-size: 10cqmin;
   font-weight: 700;
 }
 
 .score-content {
-  padding: 0.85rem;
+  padding: 0.8vmax;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.55vmax;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .round-score {
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: clamp(2.6rem, 9vw, 4.9rem);
+  font-size: 40cqmin;
   font-weight: 800;
   line-height: 1;
-  padding: 0;
 }
 
 .total-score {
-  font-size: 1.15rem;
+  font-size: 20cqmin;
   opacity: 0.92;
 }
 
@@ -190,7 +260,7 @@ button:disabled {
   border: 0;
   border-left: 1px solid var(--card-border);
   border-radius: 0;
-  font-size: 2rem;
+  font-size: 20cqmin;
   color: #fff;
   background: rgba(84, 42, 18, 0.65);
 }
@@ -204,57 +274,65 @@ button:disabled {
 }
 
 .total-card {
-  grid-template-columns: 1fr;
-  min-height: 250px;
+  /* h3 across the top, then grand total on the left of the round breakdown.
+     minmax(20%, auto) gives the total column a 20%-of-card floor (a bare
+     min-width on the item can't do this — the % resolves against the track). */
+  grid-template-columns: minmax(33%, auto) 1fr;
+  grid-template-rows: auto 1fr;
 }
 
 .grand-total {
-  text-align: center;
-  font-size: clamp(2.4rem, 8vw, 5rem);
+  grid-column: 1;
+  align-self: center;
+  padding-left: 0.9vmax;
+  font-size: 24cqmin;
   font-weight: 800;
-  line-height: 1.05;
-  margin: 0.8rem 0;
+  line-height: 1;
+  text-align: center;
 }
 
 .round-list {
+  /* Split the fixed breakdown area into exactly one cell per round
+     (--round-major/-minor from the store) so every round is always visible;
+     more rounds -> smaller cells -> smaller chips. Transposed in portrait. */
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.4rem;
-  padding: 0 0.8rem 0.9rem;
+  grid-template-columns: repeat(var(--round-major, 3), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--round-minor, 2), minmax(0, 1fr));
+  gap: 0.5vmax;
+  padding: 0.8vmax;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  list-style: none;
+  margin: 0;
 }
 
 .round-item {
   display: flex;
-  gap: 0.35rem;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  padding: 0.35rem;
-  border-radius: 0.35rem;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.round-item dd {
-  margin: 0;
+  overflow: hidden;
+  border-radius: 0.3vmax;
   font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  /* Query container so the digit fills its cell; cqmin bounds it by the
+     shorter side, so it never overflows regardless of cell shape. */
+  container-type: size;
 }
 
-@media (max-width: 1024px) {
-  .shell {
-    padding: 0.85rem;
-  }
-
-  .panel {
-    min-height: calc(100vh - 1.7rem);
-  }
-
-  .score-card {
-    min-height: 200px;
-  }
+.round-item span {
+  font-size: 50cqmin;
+  line-height: 1;
 }
 
-@media (max-width: 700px) {
+@media (orientation: portrait) {
+  :root {
+    --score-control-width: 25%;
+  }
+
   .panel-header {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .actions {
@@ -262,14 +340,17 @@ button:disabled {
   }
 
   .score-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .score-card {
-    grid-template-columns: 1fr 58px;
+    /* Portrait: transpose so the larger axis runs down the screen. */
+    grid-template-columns: repeat(var(--grid-minor, 2), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--grid-major, 4), minmax(0, 1fr));
   }
 
   .round-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--round-minor, 2), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--round-major, 3), minmax(0, 1fr));
+  }
+
+  .score-card:not(.total-card) {
+    grid-template-columns: 1fr var(--score-control-width);
   }
 }
