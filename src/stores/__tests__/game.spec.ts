@@ -114,51 +114,48 @@ describe('game store', () => {
     expect([game.roundMajor, game.roundMinor]).toEqual([4, 3])
   })
 
-  it('stores a small image file verbatim as a data URL', async () => {
+  it('returns to the screen settings was opened from', () => {
     const game = useGameStore()
-    const file = new File([new Uint8Array([1, 2, 3, 4])], 'bg.png', { type: 'image/png' })
+    game.addPlayer('Alia')
+    game.startGame()
+    game.endGame()
 
-    await game.setBackgroundImage(file)
+    game.openSettings()
+    expect(game.screen).toBe('settings')
 
-    expect(game.backgroundImage.startsWith('data:image/png;base64,')).toBe(true)
+    game.closeSettings()
+    expect(game.screen).toBe('total')
   })
 
-  it('rejects a non-image file and keeps the previous background', async () => {
+  it('does not stack the return screen when settings is already open', () => {
     const game = useGameStore()
-    const file = new File(['not an image'], 'notes.txt', { type: 'text/plain' })
+    game.addPlayer('Alia')
+    game.startGame()
 
-    await expect(game.setBackgroundImage(file)).rejects.toThrow('image')
-    expect(game.backgroundImage).toBe('')
+    game.openSettings()
+    game.openSettings()
+    game.closeSettings()
+
+    expect(game.screen).toBe('round')
   })
 
-  it('clears the background', async () => {
-    const game = useGameStore()
-    await game.setBackgroundImage(new File([new Uint8Array([1])], 'bg.png', { type: 'image/png' }))
-
-    game.clearBackgroundImage()
-
-    expect(game.backgroundImage).toBe('')
-  })
-
-  it('drops a persisted background value that is not an image data URL', () => {
-    localStorage.setItem('screen-counter:bg-image', 'https://example.com/evil.png')
+  it('keeps a persisted settings screen on reload, even without players', () => {
+    // useLocalStorage keeps string refs raw, so no JSON.stringify here.
+    localStorage.setItem('screen-counter:screen', 'settings')
 
     const game = useGameStore()
 
-    expect(game.backgroundImage).toBe('')
+    expect(game.screen).toBe('settings')
   })
 
-  it('restores a persisted background across sessions', async () => {
-    const firstSession = useGameStore()
-    await firstSession.setBackgroundImage(
-      new File([new Uint8Array([9, 9, 9])], 'bg.png', { type: 'image/png' }),
-    )
-    await nextTick()
+  it('falls back to setup when closing settings with no players', () => {
+    localStorage.setItem('screen-counter:screen', 'settings')
+    localStorage.setItem('screen-counter:settings-return', 'round')
 
-    setActivePinia(createPinia())
-    const secondSession = useGameStore()
+    const game = useGameStore()
+    game.closeSettings()
 
-    expect(secondSession.backgroundImage.startsWith('data:image/png;base64,')).toBe(true)
+    expect(game.screen).toBe('setup')
   })
 
   it('restores persisted game state from local storage', async () => {

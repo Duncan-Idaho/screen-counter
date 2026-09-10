@@ -1,9 +1,12 @@
 import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import { fileToBackgroundDataUrl, isValidBackgroundValue } from '@/lib/backgroundImage'
 
-export type ScreenName = 'setup' | 'round' | 'total'
+export type ScreenName = 'setup' | 'round' | 'total' | 'settings'
+
+// Screens the settings screen can return to; `settings` itself is excluded so a
+// round-trip can never land back on it.
+export type ReturnScreenName = Exclude<ScreenName, 'settings'>
 
 export interface Player {
   id: number
@@ -19,7 +22,10 @@ export const useGameStore = defineStore('game', () => {
   const currentRound = useLocalStorage('screen-counter:current-round', 0)
   const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
   const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
-  const backgroundImage = useLocalStorage<string>('screen-counter:bg-image', '')
+  const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
+    'screen-counter:settings-return',
+    'setup',
+  )
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
@@ -67,12 +73,12 @@ export const useGameStore = defineStore('game', () => {
     players.value = normalizePlayers(players.value)
     currentRound.value = Math.max(0, Math.floor(Number(currentRound.value) || 0))
 
-    if (!['setup', 'round', 'total'].includes(screen.value)) {
+    if (!['setup', 'round', 'total', 'settings'].includes(screen.value)) {
       screen.value = 'setup'
     }
 
-    if (backgroundImage.value && !isValidBackgroundValue(backgroundImage.value)) {
-      backgroundImage.value = ''
+    if (!['setup', 'round', 'total'].includes(settingsReturnScreen.value)) {
+      settingsReturnScreen.value = 'setup'
     }
 
     const maxPlayerId = players.value.reduce((max, player) => Math.max(max, player.id), 0)
@@ -80,7 +86,12 @@ export const useGameStore = defineStore('game', () => {
 
     if (players.value.length === 0) {
       currentRound.value = 0
-      screen.value = 'setup'
+      // Settings needs no players, so it survives an empty roster; round/total
+      // do not and fall back to setup.
+      if (screen.value !== 'settings') {
+        screen.value = 'setup'
+      }
+      settingsReturnScreen.value = 'setup'
       return
     }
 
@@ -203,6 +214,19 @@ export const useGameStore = defineStore('game', () => {
     screen.value = 'setup'
   }
 
+  // Settings is reachable from every screen, so remember where to go back to.
+  function openSettings() {
+    if (screen.value !== 'settings') {
+      settingsReturnScreen.value = screen.value
+    }
+
+    screen.value = 'settings'
+  }
+
+  function closeSettings() {
+    screen.value = hasPlayers.value ? settingsReturnScreen.value : 'setup'
+  }
+
   function getCurrentRoundScore(player: Player) {
     return player.scores[currentRound.value] ?? 0
   }
@@ -211,24 +235,8 @@ export const useGameStore = defineStore('game', () => {
     return player.scores.reduce((sum, score) => sum + score, 0)
   }
 
-  async function setBackgroundImage(file: File) {
-    const previous = backgroundImage.value
-
-    try {
-      backgroundImage.value = await fileToBackgroundDataUrl(file)
-    } catch (error) {
-      backgroundImage.value = previous
-      throw error
-    }
-  }
-
-  function clearBackgroundImage() {
-    backgroundImage.value = ''
-  }
-
   return {
     players,
-    backgroundImage,
     currentRound,
     roundNumber,
     roundCount,
@@ -237,6 +245,7 @@ export const useGameStore = defineStore('game', () => {
     gridMajor,
     gridMinor,
     screen,
+    settingsReturnScreen,
     hasPlayers,
     addPlayer,
     removePlayer,
@@ -248,9 +257,9 @@ export const useGameStore = defineStore('game', () => {
     endGame,
     backToGame,
     goToSetup,
+    openSettings,
+    closeSettings,
     getCurrentRoundScore,
     getTotalScore,
-    setBackgroundImage,
-    clearBackgroundImage,
   }
 })

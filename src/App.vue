@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useGameStore } from './stores/game'
+import { THEME_FIELDS, useSettingsStore } from './stores/settings'
+import ColorPicker from './components/ColorPicker.vue'
 import { DEFAULT_BACKGROUND_URL } from '@/lib/backgroundImage'
 
 const game = useGameStore()
+const settings = useSettingsStore()
 const newPlayerName = ref('')
 const backgroundError = ref('')
 const backgroundInput = ref<HTMLInputElement | null>(null)
 
-const bgImage = computed(() => game.backgroundImage || DEFAULT_BACKGROUND_URL)
+const bgImage = computed(() => settings.backgroundImage || DEFAULT_BACKGROUND_URL)
+
+// Theme overrides ride alongside --bg-image on `.app`, so they also apply to the
+// settings screen itself: picking a color previews it live.
+const appStyle = computed(() => ({
+  '--bg-image': `url('${bgImage.value}')`,
+  ...settings.cssVars,
+}))
 
 function addPlayer() {
   game.addPlayer(newPlayerName.value)
@@ -27,7 +37,7 @@ async function onPickBackground(event: Event) {
   backgroundError.value = ''
 
   try {
-    await game.setBackgroundImage(file)
+    await settings.setBackgroundImage(file)
   } catch (error) {
     backgroundError.value =
       error instanceof Error ? error.message : 'Could not use that image.'
@@ -36,7 +46,7 @@ async function onPickBackground(event: Event) {
 </script>
 
 <template>
-  <div class="app" :style="{ '--bg-image': `url('${bgImage}')` }">
+  <div class="app" :style="appStyle">
     <main class="shell">
       <section v-if="game.screen === 'setup'" class="panel setup-panel">
         <h1>Karaoke Score Counter</h1>
@@ -66,25 +76,9 @@ async function onPickBackground(event: Event) {
 
         <hr class="setup-divider" />
 
-        <div class="background-form">
-          <button type="button" @click="backgroundInput?.click()">Choose background</button>
-          <input
-            ref="backgroundInput"
-            type="file"
-            accept="image/*"
-            hidden
-            @change="onPickBackground"
-          />
-          <button
-            v-if="game.backgroundImage"
-            type="button"
-            class="danger"
-            @click="game.clearBackgroundImage()"
-          >
-            Remove background
-          </button>
+        <div class="setup-actions">
+          <button type="button" @click="game.openSettings">Settings</button>
         </div>
-        <p v-if="backgroundError" class="background-error">{{ backgroundError }}</p>
       </section>
 
       <section v-else-if="game.screen === 'round'" class="panel round-panel">
@@ -94,6 +88,7 @@ async function onPickBackground(event: Event) {
             <button type="button" @click="game.nextRound">Next round</button>
             <button type="button" @click="game.endGame">End game</button>
             <button type="button" @click="game.goToSetup">Setup</button>
+            <button type="button" @click="game.openSettings">Settings</button>
           </div>
         </header>
 
@@ -122,12 +117,13 @@ async function onPickBackground(event: Event) {
         </div>
       </section>
 
-      <section v-else class="panel total-panel">
+      <section v-else-if="game.screen === 'total'" class="panel total-panel">
         <header class="panel-header">
           <h2>Totals</h2>
           <div class="actions">
             <button type="button" @click="game.backToGame">Back to game</button>
             <button type="button" @click="game.goToSetup">Setup</button>
+            <button type="button" @click="game.openSettings">Settings</button>
           </div>
         </header>
 
@@ -151,6 +147,56 @@ async function onPickBackground(event: Event) {
               </li>
             </ol>
           </article>
+        </div>
+      </section>
+
+      <section v-else class="panel settings-panel">
+        <header class="panel-header">
+          <h2>Settings</h2>
+          <div class="actions">
+            <button type="button" @click="game.closeSettings">Back</button>
+          </div>
+        </header>
+
+        <h3>Background</h3>
+
+        <div class="background-form">
+          <button type="button" @click="backgroundInput?.click()">Choose background</button>
+          <input
+            ref="backgroundInput"
+            type="file"
+            accept="image/*"
+            hidden
+            @change="onPickBackground"
+          />
+          <button
+            v-if="settings.backgroundImage"
+            type="button"
+            class="danger"
+            @click="settings.clearBackgroundImage()"
+          >
+            Remove background
+          </button>
+        </div>
+        <p v-if="backgroundError" class="background-error">{{ backgroundError }}</p>
+
+        <hr class="setup-divider" />
+
+        <h3>Theme</h3>
+
+        <div class="theme-form">
+          <ColorPicker
+            v-for="field in THEME_FIELDS"
+            :key="field.key"
+            :label="field.label"
+            :alpha="field.key !== 'text'"
+            :model-value="settings.theme[field.key]"
+            @update:model-value="settings.setColor(field.key, $event)"
+          />
+        </div>
+
+        <div class="setup-actions">
+          <button type="button" class="danger" @click="settings.resetTheme()">Reset theme</button>
         </div>
       </section>
     </main>
