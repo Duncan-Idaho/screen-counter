@@ -5,7 +5,7 @@
   --card-bg: rgba(15, 9, 6, 0.78);
   --card-border: rgba(255, 255, 255, 0.22);
   --button-bg: rgba(205, 135, 70, 0.86);
-  --button-bg-hover: rgba(222, 154, 91, 0.95);
+  --button-bg-hover: rgba(132, 92, 54, 0.95);
   --danger-bg: rgba(168, 65, 44, 0.82);
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
@@ -203,16 +203,18 @@ h3 {
   justify-content: center;
   gap: 0.55vmax;
   min-height: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .round-score {
-  border: none;
-  background: transparent;
-  color: inherit;
   font-size: 40cqmin;
   font-weight: 800;
   line-height: 1;
-  padding: 0;
 }
 
 .total-score {

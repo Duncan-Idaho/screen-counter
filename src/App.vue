@@ -61,17 +61,15 @@ function addPlayer() {
           <article v-for="player in game.players" :key="player.id" class="score-card">
             <h3>{{ player.name }}</h3>
 
-            <div class="score-content">
-              <button
-                type="button"
-                class="round-score"
-                :aria-label="`Increment ${player.name}`"
-                @click="game.incrementScore(player.id)"
-              >
-                {{ game.getCurrentRoundScore(player) }}
-              </button>
-              <p class="total-score">Total: {{ game.getTotalScore(player) }}</p>
-            </div>
+            <button
+              type="button"
+              class="score-content"
+              :aria-label="`Increment ${player.name}`"
+              @click="game.incrementScore(player.id)"
+            >
+              <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
+              <span class="total-score">Total: {{ game.getTotalScore(player) }}</span>
+            </button>
 
             <div class="score-controls">
               <button type="button" class="plus" @click="game.incrementScore(player.id)">+</button>
