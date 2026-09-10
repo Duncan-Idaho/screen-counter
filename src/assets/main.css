@@ -9,7 +9,7 @@
   --danger-bg: rgba(168, 65, 44, 0.82);
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
-  --score-control-width: 4.2vmax;
+  --score-control-width: 25%;
 }
 
 body {
@@ -163,9 +163,11 @@ h3 {
 
 .score-grid {
   display: grid;
-  /* Fixed 8-slot display: 4x2 in landscape to keep all players visible without scrolling. */
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  /* Columns/rows scale with the player count (--grid-major/--grid-minor, set by
+     the store). Landscape puts the larger axis on columns; minmax(0, 1fr) keeps
+     every card inside the locked viewport without scrolling. */
+  grid-template-columns: repeat(var(--grid-major, 4), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-minor, 2), minmax(0, 1fr));
   gap: var(--ui-gap);
   min-height: 0;
 }
@@ -179,12 +181,17 @@ h3 {
   grid-template-columns: 1fr var(--score-control-width);
   grid-template-rows: auto 1fr;
   min-height: 0;
+  /* Query container so card text scales with the card box (which shrinks as
+     players are added), not just the viewport. cqmin = 1% of the card's
+     shorter side, so type stays proportional in both orientations. */
+  container-type: size;
 }
 
 .score-card h3 {
   grid-column: 1 / -1;
   padding: 0.55vmax 0.75vmax;
   border-bottom: 1px solid var(--card-border);
+  font-size: 10cqmin;
   font-weight: 700;
 }
 
@@ -202,14 +209,14 @@ h3 {
   border: none;
   background: transparent;
   color: inherit;
-  font-size: clamp(26px, 3.4vmax, 72px);
+  font-size: 40cqmin;
   font-weight: 800;
   line-height: 1;
   padding: 0;
 }
 
 .total-score {
-  font-size: clamp(12px, 1.1vmax, 22px);
+  font-size: 20cqmin;
   opacity: 0.92;
 }
 
@@ -223,7 +230,7 @@ h3 {
   border: 0;
   border-left: 1px solid var(--card-border);
   border-radius: 0;
-  font-size: clamp(20px, 2vmax, 42px);
+  font-size: 20cqmin;
   color: #fff;
   background: rgba(84, 42, 18, 0.65);
 }
@@ -243,7 +250,7 @@ h3 {
 
 .grand-total {
   text-align: center;
-  font-size: clamp(28px, 3.8vmax, 88px);
+  font-size: 16cqmin;
   font-weight: 800;
   line-height: 1.05;
   margin: 0.65vmax 0;
@@ -254,7 +261,7 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35vmax;
   padding: 0 0.8vmax 0.8vmax;
-  font-size: clamp(12px, 0.9vmax, 18px);
+  font-size: 3.5cqmin;
   align-content: start;
   overflow: hidden;
 }
@@ -276,7 +283,7 @@ h3 {
 
 @media (orientation: portrait) {
   :root {
-    --score-control-width: 5.4vmax;
+    --score-control-width: 25%;
   }
 
   .panel-header {
@@ -289,9 +296,9 @@ h3 {
   }
 
   .score-grid {
-    /* Fixed 8-slot display: 2x4 in portrait for the same no-scroll constraint. */
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(4, minmax(0, 1fr));
+    /* Portrait: transpose so the larger axis runs down the screen. */
+    grid-template-columns: repeat(var(--grid-minor, 2), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--grid-major, 4), minmax(0, 1fr));
   }
 
   .score-card {

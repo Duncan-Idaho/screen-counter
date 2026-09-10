@@ -22,6 +22,16 @@ export const useGameStore = defineStore('game', () => {
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
 
+  // Score grid dimensions, derived from the player count. `gridMinor` is the
+  // smaller axis, `gridMajor` the larger; main.css maps major->columns /
+  // minor->rows in landscape and swaps them in portrait.
+  const gridMinor = computed(() =>
+    Math.ceil(Math.sqrt(Math.max(1, players.value.length) / 2)),
+  )
+  const gridMajor = computed(() =>
+    Math.ceil(Math.max(1, players.value.length) / gridMinor.value),
+  )
+
   function normalizePlayers(rawPlayers: unknown) {
     const source = Array.isArray(rawPlayers) ? rawPlayers : []
 
@@ -188,6 +198,8 @@ export const useGameStore = defineStore('game', () => {
     players,
     currentRound,
     roundNumber,
+    gridMajor,
+    gridMinor,
     screen,
     hasPlayers,
     addPlayer,

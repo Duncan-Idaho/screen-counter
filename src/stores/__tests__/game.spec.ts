@@ -74,6 +74,30 @@ describe('game store', () => {
     expect(firstPlayer(game).scores[0]).toBe(0)
   })
 
+  it('sizes the score grid to the player count', () => {
+    const game = useGameStore()
+
+    // 0 players -> guarded to a 1x1 grid.
+    expect([game.gridMajor, game.gridMinor]).toEqual([1, 1])
+
+    const cases: Array<[number, number, number]> = [
+      [1, 1, 1],
+      [4, 2, 2],
+      [8, 4, 2],
+      [12, 4, 3],
+    ]
+
+    let added = 0
+    for (const [count, major, minor] of cases) {
+      while (added < count) {
+        game.addPlayer(`P${added + 1}`)
+        added += 1
+      }
+
+      expect([game.gridMajor, game.gridMinor]).toEqual([major, minor])
+    }
+  })
+
   it('restores persisted game state from local storage', async () => {
     const firstSessionStore = useGameStore()
 

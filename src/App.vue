@@ -54,7 +54,10 @@ function addPlayer() {
           </div>
         </header>
 
-        <div class="score-grid">
+        <div
+          class="score-grid"
+          :style="{ '--grid-major': game.gridMajor, '--grid-minor': game.gridMinor }"
+        >
           <article v-for="player in game.players" :key="player.id" class="score-card">
             <h3>{{ player.name }}</h3>
 
@@ -87,7 +90,10 @@ function addPlayer() {
           </div>
         </header>
 
-        <div class="score-grid">
+        <div
+          class="score-grid"
+          :style="{ '--grid-major': game.gridMajor, '--grid-minor': game.gridMinor }"
+        >
           <article v-for="player in game.players" :key="player.id" class="score-card total-card">
             <h3>{{ player.name }}</h3>
             <p class="grand-total">{{ game.getTotalScore(player) }}</p>
