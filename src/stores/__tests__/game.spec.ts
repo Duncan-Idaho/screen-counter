@@ -114,6 +114,53 @@ describe('game store', () => {
     expect([game.roundMajor, game.roundMinor]).toEqual([4, 3])
   })
 
+  it('stores a small image file verbatim as a data URL', async () => {
+    const game = useGameStore()
+    const file = new File([new Uint8Array([1, 2, 3, 4])], 'bg.png', { type: 'image/png' })
+
+    await game.setBackgroundImage(file)
+
+    expect(game.backgroundImage.startsWith('data:image/png;base64,')).toBe(true)
+  })
+
+  it('rejects a non-image file and keeps the previous background', async () => {
+    const game = useGameStore()
+    const file = new File(['not an image'], 'notes.txt', { type: 'text/plain' })
+
+    await expect(game.setBackgroundImage(file)).rejects.toThrow('image')
+    expect(game.backgroundImage).toBe('')
+  })
+
+  it('clears the background', async () => {
+    const game = useGameStore()
+    await game.setBackgroundImage(new File([new Uint8Array([1])], 'bg.png', { type: 'image/png' }))
+
+    game.clearBackgroundImage()
+
+    expect(game.backgroundImage).toBe('')
+  })
+
+  it('drops a persisted background value that is not an image data URL', () => {
+    localStorage.setItem('screen-counter:bg-image', 'https://example.com/evil.png')
+
+    const game = useGameStore()
+
+    expect(game.backgroundImage).toBe('')
+  })
+
+  it('restores a persisted background across sessions', async () => {
+    const firstSession = useGameStore()
+    await firstSession.setBackgroundImage(
+      new File([new Uint8Array([9, 9, 9])], 'bg.png', { type: 'image/png' }),
+    )
+    await nextTick()
+
+    setActivePinia(createPinia())
+    const secondSession = useGameStore()
+
+    expect(secondSession.backgroundImage.startsWith('data:image/png;base64,')).toBe(true)
+  })
+
   it('restores persisted game state from local storage', async () => {
     const firstSessionStore = useGameStore()
 

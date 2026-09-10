@@ -70,6 +70,10 @@ p {
   grid-template-columns: 1fr auto;
 }
 
+.background-error {
+  color: #ffd7c7;
+}
+
 input,
 button {
   font: inherit;
@@ -128,6 +132,30 @@ button:disabled {
   display: flex;
   gap: 0.6vmax;
   flex-wrap: wrap;
+}
+
+/* Start game / Resume share the row 50/50 and each go full width once wrapped. */
+.setup-actions button {
+  flex: 1 1 8vmax;
+}
+
+/* Horizontal rule separating the launch buttons from the background picker. */
+.setup-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--card-border);
+}
+
+.background-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6vmax;
+}
+
+.background-form > button {
+  flex: 1 1 8vmax;
 }
 
 .panel-header {
