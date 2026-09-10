@@ -54,6 +54,7 @@ body {
   flex-direction: column;
   gap: var(--ui-gap);
   max-width: 80vmax;
+  overflow: auto;
 }
 
 h1,
@@ -101,7 +102,8 @@ button:disabled {
 
 .players-list {
   list-style: none;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.6vmax;
   padding: 0;
 }
