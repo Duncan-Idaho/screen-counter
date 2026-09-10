@@ -95,14 +95,18 @@ function addPlayer() {
           <article v-for="player in game.players" :key="player.id" class="score-card total-card">
             <h3>{{ player.name }}</h3>
             <p class="grand-total">{{ game.getTotalScore(player) }}</p>
-            <dl class="round-list">
-              <template v-for="(score, index) in player.scores" :key="`${player.id}-${index}`">
-                <div class="round-item">
-                  <dt>{{ index + 1 }}:</dt>
-                  <dd>{{ score }}</dd>
-                </div>
-              </template>
-            </dl>
+            <ol
+              class="round-list"
+              :style="{ '--round-major': game.roundMajor, '--round-minor': game.roundMinor }"
+            >
+              <li
+                v-for="(score, index) in player.scores"
+                :key="`${player.id}-${index}`"
+                class="round-item"
+              >
+                <span>{{ score }}</span>
+              </li>
+            </ol>
           </article>
         </div>
       </section>

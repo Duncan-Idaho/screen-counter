@@ -22,15 +22,26 @@ export const useGameStore = defineStore('game', () => {
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
 
-  // Score grid dimensions, derived from the player count. `gridMinor` is the
-  // smaller axis, `gridMajor` the larger; main.css maps major->columns /
-  // minor->rows in landscape and swaps them in portrait.
-  const gridMinor = computed(() =>
-    Math.ceil(Math.sqrt(Math.max(1, players.value.length) / 2)),
+  // Split `count` cells into a landscape-biased grid: `minor` is the smaller
+  // axis, `major` the larger (major >= minor). Used for both the player card
+  // grid and the per-round breakdown; main.css maps major->columns / minor->rows
+  // in landscape and swaps them in portrait.
+  function splitGrid(count: number) {
+    const n = Math.max(1, count)
+    const minor = Math.ceil(Math.sqrt(n / 2))
+    return { major: Math.ceil(n / minor), minor }
+  }
+
+  const gridMajor = computed(() => splitGrid(players.value.length).major)
+  const gridMinor = computed(() => splitGrid(players.value.length).minor)
+
+  // Number of played rounds (longest `scores` array, guarded to >= 1) and the
+  // grid the total screen splits its per-round chips into so they always fit.
+  const roundCount = computed(() =>
+    Math.max(1, ...players.value.map((player) => player.scores.length), currentRound.value + 1),
   )
-  const gridMajor = computed(() =>
-    Math.ceil(Math.max(1, players.value.length) / gridMinor.value),
-  )
+  const roundMajor = computed(() => splitGrid(roundCount.value).major)
+  const roundMinor = computed(() => splitGrid(roundCount.value).minor)
 
   function normalizePlayers(rawPlayers: unknown) {
     const source = Array.isArray(rawPlayers) ? rawPlayers : []
@@ -198,6 +209,9 @@ export const useGameStore = defineStore('game', () => {
     players,
     currentRound,
     roundNumber,
+    roundCount,
+    roundMajor,
+    roundMinor,
     gridMajor,
     gridMinor,
     screen,

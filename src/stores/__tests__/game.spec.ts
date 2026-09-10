@@ -98,6 +98,22 @@ describe('game store', () => {
     }
   })
 
+  it('tracks the played round count and its breakdown grid', () => {
+    const game = useGameStore()
+
+    expect(game.roundCount).toBe(1)
+    expect([game.roundMajor, game.roundMinor]).toEqual([1, 1])
+
+    game.addPlayer('Feyd')
+    for (let round = 0; round < 11; round += 1) {
+      game.nextRound()
+    }
+
+    expect(game.roundCount).toBe(12)
+    // splitGrid(12): minor = ceil(sqrt(6)) = 3, major = ceil(12 / 3) = 4
+    expect([game.roundMajor, game.roundMinor]).toEqual([4, 3])
+  })
+
   it('restores persisted game state from local storage', async () => {
     const firstSessionStore = useGameStore()
 
