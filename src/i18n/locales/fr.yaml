@@ -1,0 +1,47 @@
+common:
+  settings: Paramètres d'affichage
+  setup: Configuration des équipes
+
+setup:
+  title: Compteur de points de karaoké
+  playerNamePlaceholder: Ajouter un pseudo de joueur
+  playerNameLabel: Pseudo du joueur
+  add: Ajouter
+  remove: Retirer
+  startGame: Nouvelle partie
+  resume: Reprendre
+
+round:
+  title: Manche {n}
+  nextRound: Manche suivante
+  endGame: Terminer la partie
+  increment: Ajouter un point à {name}
+  total: "Total : {n}"
+
+total:
+  title: Totaux
+  backToGame: Retour à la partie
+
+settings:
+  title: Paramètres d'affichage
+  back: Retour
+  background:
+    title: Arrière-plan
+    choose: Choisir un arrière-plan
+    remove: Supprimer l'arrière-plan
+    error: Impossible d'utiliser cette image.
+    errorDetail: "Impossible d'utiliser cette image : {message}"
+  theme:
+    title: Thème
+    reset: Réinitialiser le thème
+    fields:
+      text: Texte
+      overlay: Voile d'arrière-plan
+      panel: Panneau
+      card: Cartes
+      border: Bordures
+      button: Boutons
+      control: Boutons plus / moins
+      danger: Danger
+  language:
+    title: Langue

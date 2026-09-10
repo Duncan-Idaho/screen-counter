@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { DEFAULT_THEME, useSettingsStore } from '../settings'
+import type { Locale } from '@/i18n/locale'
 
 describe('settings store', () => {
   beforeEach(() => {
@@ -114,5 +115,46 @@ describe('settings store', () => {
     settings.resetTheme()
 
     expect(settings.theme).toEqual(DEFAULT_THEME)
+  })
+
+  describe('locale', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('defaults to the browser language on a first visit', () => {
+      vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['fr-FR', 'en'])
+
+      const settings = useSettingsStore()
+
+      expect(settings.locale).toBe('fr')
+    })
+
+    it('persists an override across sessions', async () => {
+      const firstSession = useSettingsStore()
+      firstSession.setLocale('fr')
+      await nextTick()
+
+      setActivePinia(createPinia())
+      const secondSession = useSettingsStore()
+
+      expect(secondSession.locale).toBe('fr')
+    })
+
+    it('repairs an unsupported persisted locale', () => {
+      localStorage.setItem('screen-counter:locale', 'de')
+
+      const settings = useSettingsStore()
+
+      expect(settings.locale).toBe('en')
+    })
+
+    it('ignores an unsupported locale passed to setLocale', () => {
+      const settings = useSettingsStore()
+
+      settings.setLocale('es' as Locale)
+
+      expect(settings.locale).toBe('en')
+    })
   })
 })

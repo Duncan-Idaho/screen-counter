@@ -17,9 +17,11 @@
   "dependencies": {
     "@vueuse/core": "^14.3.0",
     "pinia": "^3.0.4",
-    "vue": "^3.5.32"
+    "vue": "^3.5.32",
+    "vue-i18n": "^11.4.10"
   },
   "devDependencies": {
+    "@intlify/unplugin-vue-i18n": "^11.2.5",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^24.12.2",

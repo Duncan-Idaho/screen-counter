@@ -3,8 +3,9 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { fileToBackgroundDataUrl, isValidBackgroundValue } from '@/lib/backgroundImage'
 import { parseColor } from '@/lib/color'
+import { detectBrowserLocale, isSupportedLocale, type Locale } from '@/i18n/locale'
 
-// Appearance only: no player, score or screen state lives here. The defaults
+// Appearance and language: no player, score or screen state lives here. The defaults
 // are the colors main.css ships in `:root`, so an untouched theme renders
 // exactly like before the settings screen existed.
 export const DEFAULT_THEME = {
@@ -21,17 +22,20 @@ export const DEFAULT_THEME = {
 export type ThemeKey = keyof typeof DEFAULT_THEME
 export type Theme = Record<ThemeKey, string>
 
-// Order drives the settings screen; the label is the user-facing wording.
-export const THEME_FIELDS: { key: ThemeKey; label: string }[] = [
-  { key: 'text', label: 'Text' },
-  { key: 'overlay', label: 'Background overlay' },
-  { key: 'panel', label: 'Panel' },
-  { key: 'card', label: 'Cards' },
-  { key: 'border', label: 'Borders' },
-  { key: 'button', label: 'Buttons' },
-  { key: 'control', label: 'Plus / minus buttons' },
-  { key: 'danger', label: 'Danger' },
+// Order drives the settings screen; each field's label is the i18n key
+// `themeFieldLabelKey(key)` resolves (see `settings.theme.fields.*` in the catalogs).
+export const THEME_FIELDS: ThemeKey[] = [
+  'text',
+  'overlay',
+  'panel',
+  'card',
+  'border',
+  'button',
+  'control',
+  'danger',
 ]
+
+export const themeFieldLabelKey = (key: ThemeKey) => `settings.theme.fields.${key}`
 
 const THEME_CSS_VARS: Record<ThemeKey, string> = {
   text: '--app-text',
@@ -49,12 +53,19 @@ const THEME_KEYS = Object.keys(DEFAULT_THEME) as ThemeKey[]
 export const useSettingsStore = defineStore('settings', () => {
   const backgroundImage = useLocalStorage<string>('screen-counter:bg-image', '')
   const theme = useLocalStorage<Theme>('screen-counter:theme', { ...DEFAULT_THEME })
+  // Default only applies on first visit (key absent), so the browser language
+  // wins until the user picks one from the settings screen.
+  const locale = useLocalStorage<Locale>('screen-counter:locale', detectBrowserLocale())
 
   // Repair whatever came back from localStorage. Keep this defensive: persisted
   // data from older versions can be any shape.
   function sanitizeSettings() {
     if (backgroundImage.value && !isValidBackgroundValue(backgroundImage.value)) {
       backgroundImage.value = ''
+    }
+
+    if (!isSupportedLocale(locale.value)) {
+      locale.value = detectBrowserLocale()
     }
 
     const source = (theme.value ?? {}) as Partial<Record<ThemeKey, unknown>>
@@ -90,6 +101,12 @@ export const useSettingsStore = defineStore('settings', () => {
     theme.value = { ...DEFAULT_THEME }
   }
 
+  function setLocale(value: Locale) {
+    if (isSupportedLocale(value)) {
+      locale.value = value
+    }
+  }
+
   async function setBackgroundImage(file: File) {
     const previous = backgroundImage.value
 
@@ -108,9 +125,11 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     backgroundImage,
     theme,
+    locale,
     cssVars,
     setColor,
     resetTheme,
+    setLocale,
     setBackgroundImage,
     clearBackgroundImage,
   }

@@ -94,6 +94,7 @@ p {
 }
 
 input,
+select,
 button {
   font: inherit;
   border: 1px solid transparent;
@@ -101,7 +102,8 @@ button {
   padding: 0.65vmax 0.8vmax;
 }
 
-input {
+input,
+select {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.95);
   color: #2b1a11;
@@ -175,6 +177,15 @@ button:disabled {
 
 .background-form > button {
   flex: 1 1 8vmax;
+}
+
+.language-form {
+  display: flex;
+}
+
+.language-select {
+  flex: 0 1 22vmax;
+  cursor: pointer;
 }
 
 .panel-header {
