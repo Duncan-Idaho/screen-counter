@@ -12,7 +12,8 @@ setup:
   resume: Resume
 
 round:
-  title: Round {n}
+  title: "Round {n} - Song {song}"
+  nextSong: Next song
   nextRound: Next round
   endGame: End game
   increment: Increment {name}
@@ -43,5 +44,7 @@ settings:
       button: Buttons
       control: Plus / minus buttons
       danger: Danger
+      positive: Plus button (active)
+      negative: Minus button (active)
   language:
     title: Language

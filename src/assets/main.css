@@ -11,12 +11,16 @@
   --button-bg: rgba(205, 135, 70, 0.86);
   --control-bg: rgba(84, 42, 18, 0.65);
   --danger-bg: rgba(168, 65, 44, 0.82);
+  --positive-bg: #3f9142;
+  --negative-bg: rgba(168, 65, 44, 0.82);
 
   /* Hovers are derived so a custom theme needs one picker per button, not two.
      The directions differ on purpose, matching the original hand-picked values:
      buttons darken on hover, the score controls lighten. */
   --button-bg-hover: color-mix(in srgb, var(--button-bg) 62%, black);
   --control-bg-hover: color-mix(in srgb, var(--control-bg) 80%, white);
+  --positive-bg-hover: color-mix(in srgb, var(--positive-bg) 80%, white);
+  --negative-bg-hover: color-mix(in srgb, var(--negative-bg) 80%, white);
 
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
@@ -323,6 +327,25 @@ h3 {
 
 .score-controls button:hover {
   background: var(--control-bg-hover);
+}
+
+/* Pending per-song delta feedback: the plus/minus buttons pick up the
+   themeable positive/negative colors once the song's running tally leans
+   positive or negative. */
+.score-controls .plus.is-positive {
+  background: var(--positive-bg);
+}
+
+.score-controls .plus.is-positive:hover {
+  background: var(--positive-bg-hover);
+}
+
+.score-controls .minus.is-negative {
+  background: var(--negative-bg);
+}
+
+.score-controls .minus.is-negative:hover {
+  background: var(--negative-bg-hover);
 }
 
 .total-card {

@@ -20,19 +20,21 @@ describe('game store', () => {
     const game = useGameStore()
 
     game.addPlayer('Leto')
-    game.incrementScore(firstPlayer(game).id)
+    game.incrementSongDelta(firstPlayer(game).id)
     game.startGame()
 
     expect(game.screen).toBe('round')
     expect(game.currentRound).toBe(0)
     expect(firstPlayer(game).scores).toEqual([0])
+    expect(game.getSongDelta(firstPlayer(game))).toBe(0)
   })
 
   it('resumes game without resetting scores', () => {
     const game = useGameStore()
 
     game.addPlayer('Jessica')
-    game.incrementScore(firstPlayer(game).id)
+    game.incrementSongDelta(firstPlayer(game).id)
+    game.nextSong()
     game.resumeGame()
 
     expect(game.screen).toBe('round')
@@ -46,8 +48,8 @@ describe('game store', () => {
     game.addPlayer('Chani')
     const paulId = firstPlayer(game).id
 
-    game.incrementScore(paulId)
-    game.incrementScore(paulId)
+    game.incrementSongDelta(paulId)
+    game.incrementSongDelta(paulId)
     game.nextRound()
 
     expect(game.currentRound).toBe(1)
@@ -62,16 +64,68 @@ describe('game store', () => {
     const id = firstPlayer(game).id
 
     for (let index = 0; index < 120; index += 1) {
-      game.incrementScore(id)
+      game.incrementSongDelta(id)
     }
+    game.nextSong()
 
     expect(firstPlayer(game).scores[0]).toBe(99)
 
     for (let index = 0; index < 130; index += 1) {
-      game.decrementScore(id)
+      game.decrementSongDelta(id)
     }
+    game.nextSong()
 
     expect(firstPlayer(game).scores[0]).toBe(0)
+  })
+
+  it('tracks the current song number, resetting on next round or a new game', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Stilgar')
+    expect(game.songNumber).toBe(1)
+
+    game.nextSong()
+    game.nextSong()
+    expect(game.songNumber).toBe(3)
+
+    game.nextRound()
+    expect(game.songNumber).toBe(1)
+
+    game.nextSong()
+    expect(game.songNumber).toBe(2)
+
+    game.startGame()
+    expect(game.songNumber).toBe(1)
+  })
+
+  it('tracks a pending song delta and shows plus/minus feedback until committed', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    const id = firstPlayer(game).id
+
+    expect(game.getSongDelta(firstPlayer(game))).toBe(0)
+
+    game.incrementSongDelta(id)
+    game.incrementSongDelta(id)
+    expect(game.getSongDelta(firstPlayer(game))).toBe(2)
+    // Not applied to the round score yet - only read on nextSong/nextRound/endGame.
+    expect(firstPlayer(game).scores).toEqual([0])
+
+    game.decrementSongDelta(id)
+    expect(game.getSongDelta(firstPlayer(game))).toBe(1)
+
+    game.nextSong()
+    expect(game.getSongDelta(firstPlayer(game))).toBe(0)
+    expect(firstPlayer(game).scores).toEqual([1])
+
+    game.decrementSongDelta(id)
+    game.decrementSongDelta(id)
+    expect(game.getSongDelta(firstPlayer(game))).toBe(-2)
+
+    game.endGame()
+    expect(game.getSongDelta(firstPlayer(game))).toBe(0)
+    expect(firstPlayer(game).scores).toEqual([0])
   })
 
   it('sizes the score grid to the player count', () => {
@@ -162,7 +216,7 @@ describe('game store', () => {
     const firstSessionStore = useGameStore()
 
     firstSessionStore.addPlayer('Alia')
-    firstSessionStore.incrementScore(firstPlayer(firstSessionStore).id)
+    firstSessionStore.incrementSongDelta(firstPlayer(firstSessionStore).id)
     firstSessionStore.nextRound()
     await nextTick()
 

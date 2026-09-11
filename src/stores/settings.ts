@@ -17,6 +17,8 @@ export const DEFAULT_THEME = {
   button: 'rgba(205, 135, 70, 0.86)',
   control: 'rgba(84, 42, 18, 0.65)',
   danger: 'rgba(168, 65, 44, 0.82)',
+  positive: '#3f9142',
+  negative: 'rgba(168, 65, 44, 0.82)',
 } as const
 
 export type ThemeKey = keyof typeof DEFAULT_THEME
@@ -33,6 +35,8 @@ export const THEME_FIELDS: ThemeKey[] = [
   'button',
   'control',
   'danger',
+  'positive',
+  'negative',
 ]
 
 export const themeFieldLabelKey = (key: ThemeKey) => `settings.theme.fields.${key}`
@@ -46,6 +50,8 @@ const THEME_CSS_VARS: Record<ThemeKey, string> = {
   button: '--button-bg',
   control: '--control-bg',
   danger: '--danger-bg',
+  positive: '--positive-bg',
+  negative: '--negative-bg',
 }
 
 const THEME_KEYS = Object.keys(DEFAULT_THEME) as ThemeKey[]

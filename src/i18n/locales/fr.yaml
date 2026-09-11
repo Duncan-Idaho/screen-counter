@@ -12,7 +12,8 @@ setup:
   resume: Reprendre
 
 round:
-  title: Manche {n}
+  title: "Manche {n} - Chanson {song}"
+  nextSong: Chanson suivante
   nextRound: Manche suivante
   endGame: Terminer la partie
   increment: Ajouter un point à {name}
@@ -43,5 +44,7 @@ settings:
       button: Boutons
       control: Boutons plus / moins
       danger: Danger
+      positive: Bouton plus (actif)
+      negative: Bouton moins (actif)
   language:
     title: Langue

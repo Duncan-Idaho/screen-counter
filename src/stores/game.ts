@@ -20,6 +20,13 @@ const MAX_SCORE = 99
 export const useGameStore = defineStore('game', () => {
   const players = useLocalStorage<Player[]>('screen-counter:players', [])
   const currentRound = useLocalStorage('screen-counter:current-round', 0)
+  // Count of songs played in the current round. Bumped by `nextSong`, reset to
+  // zero by `nextRound` and by starting a new game.
+  const currentSong = useLocalStorage('screen-counter:current-song', 0)
+  // Points tallied for the song currently being played, per player id. Not part
+  // of `scores` yet: `nextSong`/`nextRound`/`endGame` apply ("read") them into
+  // the current round's score and reset this back to empty.
+  const songDeltas = useLocalStorage<Record<number, number>>('screen-counter:song-deltas', {})
   const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
   const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
   const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
@@ -29,6 +36,7 @@ export const useGameStore = defineStore('game', () => {
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
+  const songNumber = computed(() => currentSong.value + 1)
 
   // Split `count` cells into a landscape-biased grid: `minor` is the smaller
   // axis, `major` the larger (major >= minor). Used for both the player card
@@ -69,9 +77,33 @@ export const useGameStore = defineStore('game', () => {
       .filter((player) => player.name.length > 0)
   }
 
+  function normalizeSongDeltas(rawSongDeltas: unknown, playerIds: Set<number>) {
+    const source =
+      rawSongDeltas && typeof rawSongDeltas === 'object'
+        ? (rawSongDeltas as Record<string, unknown>)
+        : {}
+    const result: Record<number, number> = {}
+
+    for (const [key, value] of Object.entries(source)) {
+      const id = Number(key)
+      const delta = Math.trunc(Number(value))
+
+      if (playerIds.has(id) && Number.isFinite(delta) && delta !== 0) {
+        result[id] = delta
+      }
+    }
+
+    return result
+  }
+
   function sanitizeState() {
     players.value = normalizePlayers(players.value)
     currentRound.value = Math.max(0, Math.floor(Number(currentRound.value) || 0))
+    currentSong.value = Math.max(0, Math.floor(Number(currentSong.value) || 0))
+    songDeltas.value = normalizeSongDeltas(
+      songDeltas.value,
+      new Set(players.value.map((player) => player.id)),
+    )
 
     if (!['setup', 'round', 'total', 'settings'].includes(screen.value)) {
       screen.value = 'setup'
@@ -86,6 +118,8 @@ export const useGameStore = defineStore('game', () => {
 
     if (players.value.length === 0) {
       currentRound.value = 0
+      currentSong.value = 0
+      songDeltas.value = {}
       // Settings needs no players, so it survives an empty roster; round/total
       // do not and fall back to setup.
       if (screen.value !== 'settings') {
@@ -124,6 +158,8 @@ export const useGameStore = defineStore('game', () => {
       scores: [0],
     }))
     currentRound.value = 0
+    currentSong.value = 0
+    songDeltas.value = {}
   }
 
   function startGame() {
@@ -163,46 +199,60 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
-  function incrementScore(playerId: number) {
-    ensureRound(currentRound.value)
-    const playerIndex = players.value.findIndex((entry) => entry.id === playerId)
-
-    if (playerIndex < 0) {
-      return
-    }
-
-    const player = players.value[playerIndex]
-    if (!player) {
-      return
-    }
-
-    const score = player.scores[currentRound.value] ?? 0
-    player.scores[currentRound.value] = Math.min(MAX_SCORE, score + 1)
+  function getSongDelta(player: Player) {
+    return songDeltas.value[player.id] ?? 0
   }
 
-  function decrementScore(playerId: number) {
+  function incrementSongDelta(playerId: number) {
+    songDeltas.value = {
+      ...songDeltas.value,
+      [playerId]: (songDeltas.value[playerId] ?? 0) + 1,
+    }
+  }
+
+  function decrementSongDelta(playerId: number) {
+    songDeltas.value = {
+      ...songDeltas.value,
+      [playerId]: (songDeltas.value[playerId] ?? 0) - 1,
+    }
+  }
+
+  // Applies each player's pending song delta onto the current round's score
+  // (clamped, like a direct score edit) and clears the deltas back to empty.
+  function commitSongDeltas() {
     ensureRound(currentRound.value)
-    const playerIndex = players.value.findIndex((entry) => entry.id === playerId)
 
-    if (playerIndex < 0) {
-      return
-    }
+    players.value = players.value.map((player) => {
+      const delta = songDeltas.value[player.id] ?? 0
 
-    const player = players.value[playerIndex]
-    if (!player) {
-      return
-    }
+      if (delta === 0) {
+        return player
+      }
 
-    const score = player.scores[currentRound.value] ?? 0
-    player.scores[currentRound.value] = Math.max(MIN_SCORE, score - 1)
+      const scores = [...player.scores]
+      const score = scores[currentRound.value] ?? 0
+      scores[currentRound.value] = Math.max(MIN_SCORE, Math.min(MAX_SCORE, score + delta))
+
+      return { ...player, scores }
+    })
+
+    songDeltas.value = {}
+  }
+
+  function nextSong() {
+    commitSongDeltas()
+    currentSong.value += 1
   }
 
   function nextRound() {
+    commitSongDeltas()
     currentRound.value += 1
+    currentSong.value = 0
     ensureRound(currentRound.value)
   }
 
   function endGame() {
+    commitSongDeltas()
     screen.value = 'total'
   }
 
@@ -239,6 +289,8 @@ export const useGameStore = defineStore('game', () => {
     players,
     currentRound,
     roundNumber,
+    currentSong,
+    songNumber,
     roundCount,
     roundMajor,
     roundMinor,
@@ -251,8 +303,10 @@ export const useGameStore = defineStore('game', () => {
     removePlayer,
     startGame,
     resumeGame,
-    incrementScore,
-    decrementScore,
+    getSongDelta,
+    incrementSongDelta,
+    decrementSongDelta,
+    nextSong,
     nextRound,
     endGame,
     backToGame,

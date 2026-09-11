@@ -104,8 +104,9 @@ async function onPickBackground(event: Event) {
 
       <section v-else-if="game.screen === 'round'" class="panel round-panel">
         <header class="panel-header">
-          <h2>{{ t('round.title', { n: game.roundNumber }) }}</h2>
+          <h2>{{ t('round.title', { n: game.roundNumber, song: game.songNumber }) }}</h2>
           <div class="actions">
+            <button type="button" @click="game.nextSong">{{ t('round.nextSong') }}</button>
             <button type="button" @click="game.nextRound">{{ t('round.nextRound') }}</button>
             <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
             <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
@@ -124,15 +125,29 @@ async function onPickBackground(event: Event) {
               type="button"
               class="score-content"
               :aria-label="t('round.increment', { name: player.name })"
-              @click="game.incrementScore(player.id)"
+              @click="game.incrementSongDelta(player.id)"
             >
               <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
               <span class="total-score">{{ t('round.total', { n: game.getTotalScore(player) }) }}</span>
             </button>
 
             <div class="score-controls">
-              <button type="button" class="plus" @click="game.incrementScore(player.id)">+</button>
-              <button type="button" class="minus" @click="game.decrementScore(player.id)">−</button>
+              <button
+                type="button"
+                class="plus"
+                :class="{ 'is-positive': game.getSongDelta(player) > 0 }"
+                @click="game.incrementSongDelta(player.id)"
+              >
+                {{ game.getSongDelta(player) > 1 ? game.getSongDelta(player) : '+' }}
+              </button>
+              <button
+                type="button"
+                class="minus"
+                :class="{ 'is-negative': game.getSongDelta(player) < 0 }"
+                @click="game.decrementSongDelta(player.id)"
+              >
+                {{ game.getSongDelta(player) < -1 ? -game.getSongDelta(player) : '−' }}
+              </button>
             </div>
           </article>
         </div>
