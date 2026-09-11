@@ -229,6 +229,26 @@ button:disabled {
   gap: var(--ui-gap);
 }
 
+/* ProjectionScreen renders no header (see App.vue's shared shell) - without
+   this, the single remaining child would only claim the "auto" header row
+   and never stretch to fill the locked viewport. */
+.round-panel.no-header,
+.total-panel.no-header {
+  grid-template-rows: 1fr;
+}
+
+.projection-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.projection-waiting p {
+  font-size: clamp(20px, 3vmax, 48px);
+  opacity: 0.85;
+}
+
 h1 {
   font-size: clamp(20px, 2.1vmax, 40px);
 }
@@ -269,6 +289,17 @@ h3 {
      players are added), not just the viewport. cqmin = 1% of the card's
      shorter side, so type stays proportional in both orientations. */
   container-type: size;
+}
+
+/* ProjectionScreen's round view passes interactive: false to ScoreGrid, which
+   omits .score-controls entirely - collapse the column reserved for it so the
+   score fills the full card width instead of leaving it blank. */
+.score-card--readonly {
+  grid-template-columns: 1fr;
+}
+
+.score-card--readonly .score-content {
+  cursor: default;
 }
 
 .score-card h3 {
@@ -427,6 +458,10 @@ h3 {
 
   .score-card:not(.total-card) {
     grid-template-columns: 1fr var(--score-control-width);
+  }
+
+  .score-card--readonly:not(.total-card) {
+    grid-template-columns: 1fr;
   }
 
   .theme-form {

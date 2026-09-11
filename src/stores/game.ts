@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 
@@ -32,6 +32,16 @@ export const useGameStore = defineStore('game', () => {
   const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
     'screen-counter:settings-return',
     'setup',
+  )
+  // Which screen a projection window (a second, fully independent app
+  // instance opened via window.open - see MainScreen.vue's
+  // openProjectionWindow and CLAUDE.md) should show. Kept as its own
+  // localStorage-backed field, rather than read directly off `screen`, so it
+  // can be frozen while the operator is on 'setup'/'settings': the audience
+  // display must never flicker to an admin-only screen.
+  const projectionScreen = useLocalStorage<'round' | 'total'>(
+    'screen-counter:projection-screen',
+    'round',
   )
 
   const hasPlayers = computed(() => players.value.length > 0)
@@ -113,6 +123,10 @@ export const useGameStore = defineStore('game', () => {
       settingsReturnScreen.value = 'setup'
     }
 
+    if (!['round', 'total'].includes(projectionScreen.value)) {
+      projectionScreen.value = 'round'
+    }
+
     const maxPlayerId = players.value.reduce((max, player) => Math.max(max, player.id), 0)
     nextPlayerId.value = Math.max(Math.floor(Number(nextPlayerId.value) || 1), maxPlayerId + 1, 1)
 
@@ -133,6 +147,25 @@ export const useGameStore = defineStore('game', () => {
   }
 
   sanitizeState()
+
+  // Mirrors `screen` into `projectionScreen` whenever it becomes 'round' or
+  // 'total', and leaves it untouched otherwise (i.e. during 'setup'/
+  // 'settings'). A reactive watcher rather than threading this into every
+  // action that sets `screen` (startGame, resumeGame, backToGame, endGame,
+  // goToSetup, openSettings, closeSettings) so it can't be forgotten at a
+  // future call site.
+  // `flush: 'sync'` so this is never one tick behind `screen` - actions like
+  // `endGame()` must leave `projectionScreen` already updated by the time they
+  // return, matching every other direct `screen.value = ...` assignment here.
+  watch(
+    screen,
+    (next) => {
+      if (next === 'round' || next === 'total') {
+        projectionScreen.value = next
+      }
+    },
+    { flush: 'sync' },
+  )
 
   function addPlayer(name: string) {
     const pseudo = name.trim()
@@ -298,6 +331,7 @@ export const useGameStore = defineStore('game', () => {
     gridMinor,
     screen,
     settingsReturnScreen,
+    projectionScreen,
     hasPlayers,
     addPlayer,
     removePlayer,

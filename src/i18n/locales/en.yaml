@@ -1,6 +1,7 @@
 common:
   settings: Display settings
   setup: Team setup
+  openProjection: Open projection window
 
 setup:
   title: Karaoke Score Counter
@@ -22,6 +23,9 @@ round:
 total:
   title: Totals
   backToGame: Back to game
+
+projection:
+  waiting: Waiting for the game to start.
 
 settings:
   title: Display settings

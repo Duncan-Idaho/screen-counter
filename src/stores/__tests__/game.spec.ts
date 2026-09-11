@@ -212,6 +212,61 @@ describe('game store', () => {
     expect(game.screen).toBe('setup')
   })
 
+  it('mirrors the projection screen onto round and total, defaulting to round', () => {
+    const game = useGameStore()
+
+    expect(game.projectionScreen).toBe('round')
+
+    game.addPlayer('Chani')
+    game.startGame()
+    expect(game.projectionScreen).toBe('round')
+
+    game.endGame()
+    expect(game.projectionScreen).toBe('total')
+
+    game.backToGame()
+    expect(game.projectionScreen).toBe('round')
+  })
+
+  it('freezes the projection screen while on setup or settings', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    game.startGame()
+    game.endGame()
+    expect(game.projectionScreen).toBe('total')
+
+    game.openSettings()
+    expect(game.projectionScreen).toBe('total')
+
+    game.closeSettings()
+    game.goToSetup()
+    expect(game.projectionScreen).toBe('total')
+  })
+
+  it('shares the projection screen across store instances via local storage', async () => {
+    const firstSessionStore = useGameStore()
+
+    firstSessionStore.addPlayer('Alia')
+    firstSessionStore.startGame()
+    firstSessionStore.endGame()
+    await nextTick()
+
+    setActivePinia(createPinia())
+    const secondSessionStore = useGameStore()
+
+    expect(secondSessionStore.projectionScreen).toBe('total')
+  })
+
+  it('falls back to round when the persisted projection screen is invalid', () => {
+    // useLocalStorage keeps string refs raw, so no JSON.stringify here.
+    localStorage.setItem('screen-counter:projection-screen', 'bogus')
+
+    const game = useGameStore()
+
+    expect(game.projectionScreen).toBe('round')
+  })
+
   it('restores persisted game state from local storage', async () => {
     const firstSessionStore = useGameStore()
 

@@ -1,6 +1,7 @@
 common:
   settings: Paramètres d'affichage
   setup: Configuration des équipes
+  openProjection: Ouvrir la fenêtre de projection
 
 setup:
   title: Compteur de points de karaoké
@@ -22,6 +23,9 @@ round:
 total:
   title: Totaux
   backToGame: Retour à la partie
+
+projection:
+  waiting: En attente du début de la partie.
 
 settings:
   title: Paramètres d'affichage
