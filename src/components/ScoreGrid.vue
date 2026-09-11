@@ -1,62 +1,78 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { useGameStore } from '@/stores/game'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { useGameStore, type Player } from '@/stores/game'
+import { sortByTotalScore, SORT_DELAY_MS } from '@/lib/projectionOrder'
+import ScoreCard from './ScoreCard.vue'
 
 // Shared by MainScreen's round screen (interactive: score taps/± buttons
 // change songDeltas) and ProjectionScreen's round view (interactive: false -
-// same visual content, no click targets at all, not even the score itself).
-defineProps<{ interactive: boolean }>()
+// same visual content, no click targets, plus the sort/highlight below).
+const props = defineProps<{ interactive: boolean }>()
 
 const game = useGameStore()
-const { t } = useI18n({ useScope: 'global' })
+
+// MainScreen (interactive) keeps the operator's click order stable and never
+// reorders - only the projection window sorts by score.
+const sortedIds = ref<number[]>([])
+
+if (!props.interactive) {
+  sortedIds.value = sortByTotalScore(game.players, game.getTotalScore).map((player) => player.id)
+
+  let sortTimer: ReturnType<typeof setTimeout> | undefined
+
+  // Keyed on both songNumber and currentRound: nextRound() resets currentSong
+  // to 0, which alone wouldn't change songNumber if the outgoing round had
+  // only one song - watching both closes that gap while staying the same
+  // "wait 2s after it changes, then resort" mechanism.
+  watch(
+    () => [game.songNumber, game.currentRound],
+    () => {
+      clearTimeout(sortTimer)
+      sortTimer = setTimeout(() => {
+        sortedIds.value = sortByTotalScore(game.players, game.getTotalScore).map(
+          (player) => player.id,
+        )
+      }, SORT_DELAY_MS)
+    },
+  )
+
+  // Roster changes (add/remove) reconcile immediately, no animation - in
+  // practice unreachable during round view since players only change in setup.
+  watch(
+    () => game.players.map((player) => player.id),
+    (ids) => {
+      const idSet = new Set(ids)
+      const kept = sortedIds.value.filter((id) => idSet.has(id))
+      sortedIds.value = [...kept, ...ids.filter((id) => !kept.includes(id))]
+    },
+  )
+
+  onUnmounted(() => clearTimeout(sortTimer))
+}
+
+const displayPlayers = computed(() => {
+  if (props.interactive) {
+    return game.players
+  }
+
+  return sortedIds.value
+    .map((id) => game.players.find((player) => player.id === id))
+    .filter((player): player is Player => player !== undefined)
+})
 </script>
 
 <template>
-  <div
+  <TransitionGroup
+    tag="div"
     class="score-grid"
+    name="score-order"
     :style="{ '--grid-major': game.gridMajor, '--grid-minor': game.gridMinor }"
   >
-    <article
-      v-for="player in game.players"
+    <ScoreCard
+      v-for="player in displayPlayers"
       :key="player.id"
-      class="score-card"
-      :class="{ 'score-card--readonly': !interactive }"
-    >
-      <h3>{{ player.name }}</h3>
-
-      <button
-        v-if="interactive"
-        type="button"
-        class="score-content"
-        :aria-label="t('round.increment', { name: player.name })"
-        @click="game.incrementSongDelta(player.id)"
-      >
-        <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
-        <span class="total-score">{{ t('round.total', { n: game.getTotalScore(player) }) }}</span>
-      </button>
-      <div v-else class="score-content">
-        <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
-        <span class="total-score">{{ t('round.total', { n: game.getTotalScore(player) }) }}</span>
-      </div>
-
-      <div v-if="interactive" class="score-controls">
-        <button
-          type="button"
-          class="plus"
-          :class="{ 'is-positive': game.getSongDelta(player) > 0 }"
-          @click="game.incrementSongDelta(player.id)"
-        >
-          {{ game.getSongDelta(player) > 1 ? game.getSongDelta(player) : '+' }}
-        </button>
-        <button
-          type="button"
-          class="minus"
-          :class="{ 'is-negative': game.getSongDelta(player) < 0 }"
-          @click="game.decrementSongDelta(player.id)"
-        >
-          {{ game.getSongDelta(player) < -1 ? -game.getSongDelta(player) : '−' }}
-        </button>
-      </div>
-    </article>
-  </div>
+      :player="player"
+      :interactive="interactive"
+    />
+  </TransitionGroup>
 </template>

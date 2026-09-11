@@ -277,6 +277,7 @@ h3 {
 }
 
 .score-card {
+  position: relative;
   border: 1px solid var(--card-border);
   border-radius: var(--ui-radius);
   overflow: hidden;
@@ -289,6 +290,63 @@ h3 {
      players are added), not just the viewport. cqmin = 1% of the card's
      shorter side, so type stays proportional in both orientations. */
   container-type: size;
+  /* Drives the projection window's highlight glow fading in and out
+     (ScoreCard.vue) - see .score-card--positive/--negative below. */
+  transition: box-shadow 1s ease;
+}
+
+/* Projection window only (ScoreGrid.vue passes sortedIds/highlight state only
+   when !interactive): the reorder slide (must match MOVE_DURATION_MS in
+   projectionOrder.ts) and the score-change glow. A ring rather than a solid
+   fill, so it doesn't fight the user's chosen card text color. */
+.score-order-move {
+  transition: transform 2s ease;
+}
+
+.score-card--positive,
+.score-card--negative {
+  box-shadow:
+    0 0 1.5vmax 0.3vmax var(--positive-bg),
+    inset 0 0 0 0.15vmax var(--positive-bg);
+}
+
+.score-card--negative {
+  box-shadow:
+    0 0 1.5vmax 0.3vmax var(--negative-bg),
+    inset 0 0 0 0.15vmax var(--negative-bg);
+}
+
+/* One-shot radial burst for score increases - 10 pieces rotated evenly
+   around the card center, each flying outward then fading (forwards keeps
+   them invisible once done, rather than looping). */
+.confetti-burst {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.2vmax;
+  height: 1.2vmax;
+  margin: -0.6vmax;
+  background: var(--positive-bg);
+  animation: confetti-fly 1.4s ease-out forwards;
+  animation-delay: calc(var(--i) * 30ms);
+}
+
+@keyframes confetti-fly {
+  0% {
+    transform: rotate(calc(var(--i) * 36deg)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(calc(var(--i) * 36deg)) translateY(-6vmax) scale(0.4);
+    opacity: 0;
+  }
 }
 
 /* ProjectionScreen's round view passes interactive: false to ScoreGrid, which
