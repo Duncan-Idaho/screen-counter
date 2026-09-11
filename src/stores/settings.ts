@@ -19,6 +19,9 @@ export const DEFAULT_THEME = {
   danger: 'rgba(168, 65, 44, 0.82)',
   positive: '#3f9142',
   negative: 'rgba(168, 65, 44, 0.82)',
+  positiveGlow: '#3f9142',
+  negativeGlow: 'rgba(168, 65, 44, 0.82)',
+  confetti: '#3f9142',
 } as const
 
 export type ThemeKey = keyof typeof DEFAULT_THEME
@@ -37,6 +40,9 @@ export const THEME_FIELDS: ThemeKey[] = [
   'danger',
   'positive',
   'negative',
+  'positiveGlow',
+  'negativeGlow',
+  'confetti',
 ]
 
 export const themeFieldLabelKey = (key: ThemeKey) => `settings.theme.fields.${key}`
@@ -52,6 +58,9 @@ const THEME_CSS_VARS: Record<ThemeKey, string> = {
   danger: '--danger-bg',
   positive: '--positive-bg',
   negative: '--negative-bg',
+  positiveGlow: '--positive-glow',
+  negativeGlow: '--negative-glow',
+  confetti: '--confetti',
 }
 
 const THEME_KEYS = Object.keys(DEFAULT_THEME) as ThemeKey[]

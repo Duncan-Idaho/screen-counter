@@ -50,5 +50,8 @@ settings:
       danger: Danger
       positive: Plus button (active)
       negative: Minus button (active)
+      positiveGlow: Projection glow (score up)
+      negativeGlow: Projection glow (score down)
+      confetti: Projection confetti
   language:
     title: Language

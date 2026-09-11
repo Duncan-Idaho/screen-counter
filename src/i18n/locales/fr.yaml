@@ -50,5 +50,8 @@ settings:
       danger: Danger
       positive: Bouton plus (actif)
       negative: Bouton moins (actif)
+      positiveGlow: Halo de projection (score en hausse)
+      negativeGlow: Halo de projection (score en baisse)
+      confetti: Confettis de projection
   language:
     title: Langue

@@ -13,6 +13,9 @@
   --danger-bg: rgba(168, 65, 44, 0.82);
   --positive-bg: #3f9142;
   --negative-bg: rgba(168, 65, 44, 0.82);
+  --positive-glow: #3f9142;
+  --negative-glow: rgba(168, 65, 44, 0.82);
+  --confetti: #3f9142;
 
   /* Hovers are derived so a custom theme needs one picker per button, not two.
      The directions differ on purpose, matching the original hand-picked values:
@@ -306,14 +309,14 @@ h3 {
 .score-card--positive,
 .score-card--negative {
   box-shadow:
-    0 0 1.5vmax 0.3vmax var(--positive-bg),
-    inset 0 0 0 0.15vmax var(--positive-bg);
+    0 0 1.5vmax 0.3vmax var(--positive-glow),
+    inset 0 0 0 0.15vmax var(--positive-glow);
 }
 
 .score-card--negative {
   box-shadow:
-    0 0 1.5vmax 0.3vmax var(--negative-bg),
-    inset 0 0 0 0.15vmax var(--negative-bg);
+    0 0 1.5vmax 0.3vmax var(--negative-glow),
+    inset 0 0 0 0.15vmax var(--negative-glow);
 }
 
 /* One-shot radial burst for score increases - 10 pieces rotated evenly
@@ -333,7 +336,7 @@ h3 {
   width: 1.2vmax;
   height: 1.2vmax;
   margin: -0.6vmax;
-  background: var(--positive-bg);
+  background: var(--confetti);
   animation: confetti-fly 1.4s ease-out forwards;
   animation-delay: calc(var(--i) * 30ms);
 }
