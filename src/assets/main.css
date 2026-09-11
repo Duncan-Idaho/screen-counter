@@ -333,9 +333,12 @@ h3 {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 1.2vmax;
-  height: 1.2vmax;
-  margin: -0.6vmax;
+  /* cqmin, not vmax: pieces scale with the card box (.score-card is a size
+     query container - see main.css's container-type note above), the same
+     way .round-score/.total-score do, not with the viewport. */
+  width: 6cqmin;
+  height: 6cqmin;
+  margin: -3cqmin;
   background: var(--confetti);
   animation: confetti-fly 1.4s ease-out forwards;
   animation-delay: calc(var(--i) * 30ms);
@@ -343,11 +346,11 @@ h3 {
 
 @keyframes confetti-fly {
   0% {
-    transform: rotate(calc(var(--i) * 36deg)) translateY(0) scale(1);
+    transform: rotate(calc(var(--i) * 36deg)) translateY(-5cqmin) scale(1);
     opacity: 1;
   }
   100% {
-    transform: rotate(calc(var(--i) * 36deg)) translateY(-6vmax) scale(0.4);
+    transform: rotate(calc(var(--i) * 36deg)) translateY(-60cqmin) scale(0.6);
     opacity: 0;
   }
 }
