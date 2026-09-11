@@ -1,7 +1,7 @@
 common:
   settings: Paramètres d'affichage
   setup: Configuration des équipes
-  openProjection: Ouvrir la fenêtre de projection
+  openProjection: Projeter
 
 setup:
   title: Compteur de points de karaoké

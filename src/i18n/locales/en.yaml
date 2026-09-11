@@ -1,7 +1,7 @@
 common:
   settings: Display settings
   setup: Team setup
-  openProjection: Open projection window
+  openProjection: Project
 
 setup:
   title: Karaoke Score Counter

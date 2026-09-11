@@ -49,7 +49,7 @@ async function onPickBackground(event: Event) {
 // Pages. If no second window is ever opened, this screen alone continues to
 // serve as both control and projection, exactly as before this feature.
 function openProjectionWindow() {
-  window.open(`${import.meta.env.BASE_URL}#/projection`, 'screen-counter-projection')
+  window.open(`${import.meta.env.BASE_URL}#/projection`, 'screen-counter-projection', "popup=yes")
 }
 </script>
 
