@@ -372,6 +372,7 @@ h3 {
   border-bottom: 1px solid var(--card-border);
   font-size: 10cqmin;
   font-weight: 700;
+  text-align: center;
 }
 
 .score-content {
