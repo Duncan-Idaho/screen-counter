@@ -22,8 +22,11 @@ const { t } = useI18n({ useScope: 'global' })
     <p>{{ t('projection.waiting') }}</p>
   </section>
 
+  <!-- The total view is the end-of-game reveal: it opens empty and gains one
+       card per operator click, so `revealing` is as true here as it is on the
+       scoreboard below. -->
   <section v-else-if="game.projectionScreen === 'total'" class="panel total-panel no-header">
-    <TotalGrid sorted />
+    <TotalGrid sorted revealing />
   </section>
 
   <section v-else class="panel round-panel no-header">

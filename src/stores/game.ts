@@ -339,8 +339,16 @@ export const useGameStore = defineStore('game', () => {
     settledRounds.value = currentRound.value + 1
   }
 
+  // Both reveal surfaces go through here: the round reveal over that round's
+  // points, and the total screen's end-of-game reveal over the final scores.
+  // They share `revealedIds` because they never overlap - `endRound` and
+  // `endGame` each empty it on the way in.
   function revealPlayer(playerId: number) {
-    if (screen.value !== 'reveal' || revealedIds.value.includes(playerId)) {
+    if (screen.value !== 'reveal' && screen.value !== 'total') {
+      return
+    }
+
+    if (revealedIds.value.includes(playerId)) {
       return
     }
 
@@ -359,6 +367,9 @@ export const useGameStore = defineStore('game', () => {
     openRound()
   }
 
+  // Ends the game and starts the final reveal: the total screen is the
+  // end-of-game ceremony, and "every card revealed" is simply its finished
+  // state, so it opens on a blank projection the way `endRound` does.
   function endGame() {
     // Ending mid-round must still count the points tallied so far - but not
     // when the round is untouched (the usual case: the operator ends the game
@@ -369,11 +380,24 @@ export const useGameStore = defineStore('game', () => {
     // settles a second round on top of the one just revealed.
     const scored = players.value.some((player) => (player.scores[currentRound.value] ?? 0) > 0)
 
+    // The order of these writes is load-bearing, exactly as in `endRound`, and
+    // for two separate reasons.
+    //
+    // `revealedIds` first: the reveal screen leaves it full, so switching
+    // screens ahead of it would mount the total view with every team already
+    // revealed and print the whole podium at once.
+    //
+    // `settledRounds` last: until `screen` changes, the projection is still on
+    // the frozen scoreboard, which reads `getSettledScore` - publishing the
+    // round first would flash the points the operator has just tallied in
+    // private across every card, one storage event before the screen turns
+    // over. By the time it lands, the total view is up and empty.
+    revealedIds.value = []
+    screen.value = 'total'
+
     if (scored) {
       settledRounds.value = Math.max(settledRounds.value, currentRound.value + 1)
     }
-
-    screen.value = 'total'
   }
 
   function backToGame() {

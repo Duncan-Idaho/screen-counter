@@ -130,17 +130,23 @@ function openProjectionWindow() {
     <ScoreGrid mode="reveal" />
   </section>
 
+  <!-- The end of the game is a reveal too, over the final scores instead of a
+       round's points: same cards as before, each one now a button that puts
+       that team up on the projection. -->
   <section v-else-if="game.screen === 'total'" class="panel total-panel">
     <header class="panel-header">
       <h2>{{ t('total.title') }}</h2>
       <div class="actions">
         <button type="button" @click="game.backToGame">{{ t('total.backToGame') }}</button>
         <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
+        <button type="button" @click="openProjectionWindow">
+          {{ t('common.openProjection') }}
+        </button>
         <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
       </div>
     </header>
 
-    <TotalGrid />
+    <TotalGrid selectable />
   </section>
 
   <section v-else class="panel settings-panel">

@@ -6,7 +6,7 @@ import { parseColor } from '@/lib/color'
 import { normalizeFontFamily } from '@/lib/font'
 import { detectBrowserLocale, isSupportedLocale, type Locale } from '@/i18n/locale'
 
-// Appearance, language, and the one gameplay opt-in (`penaltiesEnabled`): no
+// Appearance, language, and the one gameplay switch (`penaltiesEnabled`): no
 // player, score or screen state lives here. The defaults are the colors main.css
 // ships in `:root`, so an untouched theme renders exactly like before the
 // settings screen existed.
@@ -85,11 +85,13 @@ export const useSettingsStore = defineStore('settings', () => {
   // Default only applies on first visit (key absent), so the browser language
   // wins until the user picks one from the settings screen.
   const locale = useLocalStorage<Locale>('screen-counter:locale', detectBrowserLocale())
-  // The one gameplay opt-in in this store. It lives here rather than in game.ts
-  // for the same reason `locale` does: it is an operator preference that has to
-  // survive `startGame`, and game.ts is the state machine, not the preference
-  // store. Deliberately not a THEME_FIELDS key - it is a boolean, not a color -
-  // so it follows the scalar pattern `locale`/`font` set instead.
+  // The one gameplay switch in this store, and an opt-*out*: penalties are on
+  // out of the box, so an operator who wants them never has to find the setting
+  // first. It lives here rather than in game.ts for the same reason `locale`
+  // does: it is an operator preference that has to survive `startGame`, and
+  // game.ts is the state machine, not the preference store. Deliberately not a
+  // THEME_FIELDS key - it is a boolean, not a color - so it follows the scalar
+  // pattern `locale`/`font` set instead.
   const penaltiesEnabled = useLocalStorage('screen-counter:penalties-enabled', true)
 
   // Repair whatever came back from localStorage. Keep this defensive: persisted
@@ -107,7 +109,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // Defensively redundant - VueUse's boolean serializer is total, so anything
     // that is not 'true' already reads as false - but sanitizeSettings stays the
-    // one documented repair point for every field.
+    // one documented repair point for every field. Note the asymmetry this
+    // leaves: the default is on, but a *corrupt* persisted value lands on off,
+    // not back on the default. That is the safe direction - it shows the totals
+    // the scores add up to rather than silently deducting.
     penaltiesEnabled.value = penaltiesEnabled.value === true
 
     const source = (theme.value ?? {}) as Partial<Record<ThemeKey, unknown>>

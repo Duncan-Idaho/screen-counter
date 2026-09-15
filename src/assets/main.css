@@ -417,12 +417,40 @@ h3 {
   opacity: 0;
 }
 
-/* Projection window only (TotalGrid.vue sorts by settled score when `sorted`):
-   the reorder slide, which must match MOVE_DURATION_MS in projectionOrder.ts.
+/* Projection window only (TotalGrid.vue ranks the cards when `sorted`): the
+   reorder slide, which must match MOVE_DURATION_MS in projectionOrder.ts. At the
+   end of the game it is also the third beat of the ceremony - the newcomer
+   dropping from its gross rank to its net one - so the 2s fills that beat.
    The glow below is a ring rather than a solid fill, so it doesn't fight the
    user's chosen card text color. */
 .score-order-move {
   transition: transform 2s ease;
+}
+
+/* The total grid declared only -move until the end of the game became a reveal
+   too, so a card revealed there would have popped in. A TransitionGroup does not
+   run enter transitions on its own initial mount, so a board that is already
+   full - a reload, or a projection window opened late - still renders in one
+   silent shot. Must match REVEAL_ENTER_MS in projectionOrder.ts. */
+.score-order-enter-from {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.score-order-enter-active {
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+/* `endGame` empties the whole board at once, so the cards can fade out in
+   place - nothing is entering that would need the room back. */
+.score-order-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.score-order-leave-to {
+  opacity: 0;
 }
 
 .score-card--positive,
@@ -704,6 +732,87 @@ h3 {
    clips rather than spills. */
 .round-item--penalty span {
   font-size: 34cqmin;
+}
+
+/* End-of-game ceremony, first beat: the chip holds its cell but stays out of
+   sight, because .round-list is a centred wrap and a chip appearing a second in
+   would shove every round chip sideways to re-centre them. visibility rather
+   than opacity, so it is out of the accessibility tree too until it means
+   something. */
+.round-item--pending {
+  visibility: hidden;
+}
+
+/* Second beat. The period is CSS-only on purpose: the animation is infinite and
+   JS decides when it stops (FINAL_SETTLE_MS in projectionOrder.ts), so there is
+   no duration here to keep in lockstep. Background and shadow only - .round-list
+   clips its overflow, so a scale() would nibble the chip at the edge. */
+.round-item--pulsing {
+  animation: penalty-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes penalty-pulse {
+  0%,
+  100% {
+    background: color-mix(in srgb, var(--negative-bg) 32%, transparent);
+    box-shadow: none;
+  }
+  50% {
+    background: var(--negative-bg);
+    box-shadow: 0 0 1.2cqmin 0.3cqmin var(--negative-glow);
+  }
+}
+
+/* The odometer that counts the penalty off the grand total (ScoreRoll.vue): a
+   one-line window over a column of every value from gross down to net.
+   1em here is .grand-total's 24cqmin, so this stays inside the card's
+   container-query text sizing - it is not a viewport unit in disguise.
+   The transition duration must match FINAL_ROLL_MS in projectionOrder.ts. */
+.score-roll {
+  /* Above 1 because .grand-total sets line-height: 1, which clips the caps of
+     some of the fonts the operator can choose. */
+  --roll-line-height: 1.15;
+  display: block;
+  height: calc(var(--roll-line-height) * 1em);
+  overflow: hidden;
+}
+
+.score-roll-track {
+  display: block;
+  /* Not translateY(-100% * index): a percentage translate resolves against the
+     element's own height, and the track is every line tall. */
+  transform: translateY(calc(var(--roll-index, 0) * var(--roll-line-height) * -1em));
+  transition: transform 2s ease-in-out;
+}
+
+.score-roll-line {
+  display: block;
+  height: calc(var(--roll-line-height) * 1em);
+  line-height: var(--roll-line-height);
+}
+
+/* Control window, end-of-game reveal: a hit target over the whole card,
+   absolutely positioned so it stays out of .total-card's two-column grid (an
+   in-flow child would claim a track of its own). .score-card is already
+   position: relative. */
+.card-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.card-reveal:hover:enabled {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* The only focus affordance an invisible button can have. */
+.card-reveal:focus-visible {
+  outline: 0.25vmax solid var(--button-bg);
+  outline-offset: -0.25vmax;
 }
 
 @media (orientation: portrait) {

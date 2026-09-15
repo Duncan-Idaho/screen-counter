@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { useGameStore } from '../game'
@@ -14,6 +14,10 @@ describe('game store', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('starts a new game by resetting scores and opening round screen', () => {
@@ -234,6 +238,88 @@ describe('game store', () => {
 
     game.endRound()
     expect(game.revealedIds).toEqual([])
+  })
+
+  it('empties the board so the end-of-game reveal starts blank', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Irulan')
+    game.addPlayer('Mohiam')
+    game.startGame()
+    const [irulan, mohiam] = game.players
+
+    game.incrementScore(irulan!.id)
+    game.endRound()
+    game.revealPlayer(irulan!.id)
+    game.revealPlayer(mohiam!.id)
+
+    // The total screen is the end-of-game reveal, so it opens on nothing at all
+    // and the operator fills it back up - exactly as `endRound` does.
+    game.endGame()
+
+    expect(game.screen).toBe('total')
+    expect(game.revealedIds).toEqual([])
+  })
+
+  it('reveals a team on the total screen as well as on the reveal screen', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Gurney')
+    game.startGame()
+    const id = firstPlayer(game).id
+
+    game.incrementScore(id)
+    game.endGame()
+    game.revealPlayer(id)
+
+    expect(game.revealedIds).toEqual([id])
+
+    // Still nowhere else: back on a round, a click is the operator tallying, not
+    // revealing.
+    game.backToGame()
+    game.revealPlayer(id)
+    expect(game.revealedIds).toEqual([id])
+  })
+
+  it('publishes the round only once the total screen is up', async () => {
+    const game = useGameStore()
+
+    game.addPlayer('Stilgar')
+    game.startGame()
+    const id = firstPlayer(game).id
+
+    // A game ended from the round after a reveal: all three keys actually
+    // change, which is the only way their order is observable.
+    game.incrementScore(id)
+    game.endRound()
+    game.revealPlayer(id)
+    game.nextRound()
+    game.incrementScore(id)
+    await nextTick()
+
+    const writes = vi.spyOn(Storage.prototype, 'setItem')
+    game.endGame()
+    // useLocalStorage flushes on the pre-tick, so the writes land together.
+    await nextTick()
+
+    // The order is load-bearing across windows, where each key arrives as its
+    // own storage event: empty the board before switching screens (or the total
+    // view mounts with every team already revealed), and publish the round last
+    // (or the projection, still showing the frozen scoreboard, flashes the
+    // points the operator tallied in private).
+    expect(
+      writes.mock.calls
+        .map(([key]) => key)
+        .filter((key) =>
+          ['screen-counter:revealed', 'screen-counter:screen', 'screen-counter:settled-rounds'].includes(
+            key,
+          ),
+        ),
+    ).toEqual([
+      'screen-counter:revealed',
+      'screen-counter:screen',
+      'screen-counter:settled-rounds',
+    ])
   })
 
   it('ends the game without creating an unplayed round', () => {

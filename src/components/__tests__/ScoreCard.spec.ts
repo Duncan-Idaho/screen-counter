@@ -28,10 +28,16 @@ describe('ScoreCard', () => {
 
   it('shows two controls when penalties are off and four when they are on', () => {
     const game = setUpGame()
+    const settings = useSettingsStore()
+
+    // Set explicitly rather than leaning on the default, which is on: this test
+    // is about what the flag does, not about which way it starts (see
+    // settings.spec for that).
+    settings.setPenaltiesEnabled(false)
 
     expect(mountCard(game).findAll('.score-controls button').length).toBe(2)
 
-    useSettingsStore().setPenaltiesEnabled(true)
+    settings.setPenaltiesEnabled(true)
 
     expect(mountCard(game).findAll('.score-controls button').length).toBe(4)
   })

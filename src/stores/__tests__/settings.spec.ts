@@ -230,32 +230,38 @@ describe('settings store', () => {
   })
 
   describe('penalties', () => {
-    it('defaults to off', () => {
+    it('defaults to on', () => {
       const settings = useSettingsStore()
 
-      expect(settings.penaltiesEnabled).toBe(false)
+      // Penalties are on out of the box, so an operator who wants them never
+      // has to find the setting first; the ones who do not, turn them off once
+      // and the choice persists.
+      expect(settings.penaltiesEnabled).toBe(true)
     })
 
-    it('toggles on and back off', () => {
+    it('toggles off and back on', () => {
       const settings = useSettingsStore()
-
-      settings.setPenaltiesEnabled(true)
-      expect(settings.penaltiesEnabled).toBe(true)
 
       settings.setPenaltiesEnabled(false)
       expect(settings.penaltiesEnabled).toBe(false)
+
+      settings.setPenaltiesEnabled(true)
+      expect(settings.penaltiesEnabled).toBe(true)
     })
 
     it('persists the flag across sessions', async () => {
       const firstSessionStore = useSettingsStore()
-      firstSessionStore.setPenaltiesEnabled(true)
+      // Persisting `false` is the case worth testing: `true` is what a fresh
+      // store produces anyway, so it could not tell a restored choice from the
+      // default.
+      firstSessionStore.setPenaltiesEnabled(false)
       await nextTick()
 
       // useLocalStorage keeps booleans raw, so no JSON here.
-      expect(localStorage.getItem('screen-counter:penalties-enabled')).toBe('true')
+      expect(localStorage.getItem('screen-counter:penalties-enabled')).toBe('false')
 
       setActivePinia(createPinia())
-      expect(useSettingsStore().penaltiesEnabled).toBe(true)
+      expect(useSettingsStore().penaltiesEnabled).toBe(false)
     })
 
     it('reads any non-true persisted value as off', () => {
