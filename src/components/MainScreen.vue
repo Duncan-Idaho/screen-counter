@@ -101,10 +101,10 @@ function openProjectionWindow() {
         <button type="button" @click="game.endRound">{{ t('round.endRound') }}</button>
         <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
         <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
+        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
         <button type="button" @click="openProjectionWindow">
           {{ t('common.openProjection') }}
         </button>
-        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
       </div>
     </header>
 
@@ -120,10 +120,10 @@ function openProjectionWindow() {
         <button type="button" @click="game.nextRound">{{ t('round.nextRound') }}</button>
         <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
         <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
+        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
         <button type="button" @click="openProjectionWindow">
           {{ t('common.openProjection') }}
         </button>
-        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
       </div>
     </header>
 
@@ -139,10 +139,10 @@ function openProjectionWindow() {
       <div class="actions">
         <button type="button" @click="game.backToGame">{{ t('total.backToGame') }}</button>
         <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
+        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
         <button type="button" @click="openProjectionWindow">
           {{ t('common.openProjection') }}
         </button>
-        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
       </div>
     </header>
 
@@ -153,10 +153,10 @@ function openProjectionWindow() {
     <header class="panel-header">
       <h2>{{ t('settings.title') }}</h2>
       <div class="actions">
+        <button type="button" @click="game.closeSettings">{{ t('settings.back') }}</button>
         <button type="button" @click="openProjectionWindow">
           {{ t('common.openProjection') }}
         </button>
-        <button type="button" @click="game.closeSettings">{{ t('settings.back') }}</button>
       </div>
     </header>
 
