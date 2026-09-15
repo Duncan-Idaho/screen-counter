@@ -1,6 +1,7 @@
 import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
+import { splitGrid } from '@/lib/grid'
 
 export type ScreenName = 'setup' | 'round' | 'reveal' | 'total' | 'settings'
 
@@ -12,10 +13,18 @@ export interface Player {
   id: number
   name: string
   scores: number[]
+  // Per-game, per-player, NOT per-round: penalties are collected across the
+  // whole game and applied once, at the end (see getFinalScore). `adjustPenalty`
+  // deliberately never calls `ensureRound` and never touches `scores`,
+  // `currentRound` or `settledRounds`.
+  penalties: number
 }
 
 const MIN_SCORE = 0
 const MAX_SCORE = 99
+// The same bounds as a score, stated separately: the coincidence is not a coupling.
+const MIN_PENALTY = 0
+const MAX_PENALTY = 99
 
 export const useGameStore = defineStore('game', () => {
   const players = useLocalStorage<Player[]>('screen-counter:players', [])
@@ -52,25 +61,14 @@ export const useGameStore = defineStore('game', () => {
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
 
-  // Split `count` cells into a landscape-biased grid: `minor` is the smaller
-  // axis, `major` the larger (major >= minor). Used for both the player card
-  // grid and the per-round breakdown; main.css maps major->columns / minor->rows
-  // in landscape and swaps them in portrait.
-  function splitGrid(count: number) {
-    const n = Math.max(1, count)
-    const minor = Math.ceil(Math.sqrt(n / 2))
-    return { major: Math.ceil(n / minor), minor }
-  }
-
   const gridMajor = computed(() => splitGrid(players.value.length).major)
   const gridMinor = computed(() => splitGrid(players.value.length).minor)
 
-  // Number of rounds the total screen breaks down - the public ones only - and
-  // the grid it splits its per-round chips into so they always fit.
-  const roundCount = computed(() => Math.max(1, settledRounds.value))
-  const roundMajor = computed(() => splitGrid(roundCount.value).major)
-  const roundMinor = computed(() => splitGrid(roundCount.value).minor)
-
+  // Rebuilds each player from an object literal rather than patching in place,
+  // so unknown keys from an older persisted shape are dropped. The flip side is
+  // a standing rule: EVERY field of `Player` must be named here, or it is
+  // silently lost on every store construction - which means on every reload and
+  // the moment a projection window opens, not just on upgrade.
   function normalizePlayers(rawPlayers: unknown) {
     const source = Array.isArray(rawPlayers) ? rawPlayers : []
 
@@ -85,6 +83,12 @@ export const useGameStore = defineStore('game', () => {
                 Math.max(MIN_SCORE, Math.min(MAX_SCORE, Number(score) || 0)),
               )
             : [0],
+        // `Number(undefined) || 0` covers rows persisted before penalties
+        // existed; the trunc and clamp cover fractions and out-of-range values.
+        penalties: Math.max(
+          MIN_PENALTY,
+          Math.min(MAX_PENALTY, Math.trunc(Number((player as Player).penalties) || 0)),
+        ),
       }))
       .filter((player) => player.name.length > 0)
   }
@@ -198,6 +202,7 @@ export const useGameStore = defineStore('game', () => {
       id: nextPlayerId.value++,
       name: pseudo,
       scores: [0],
+      penalties: 0,
     })
   }
 
@@ -210,6 +215,9 @@ export const useGameStore = defineStore('game', () => {
     players.value = players.value.map((player) => ({
       ...player,
       scores: [0],
+      // Explicit, because the spread above would otherwise carry penalties into
+      // the new game. `resumeGame` relies on that same spread to keep them.
+      penalties: 0,
     }))
     currentRound.value = 0
     settledRounds.value = 0
@@ -288,6 +296,33 @@ export const useGameStore = defineStore('game', () => {
 
   function decrementScore(playerId: number) {
     adjustScore(playerId, -1)
+  }
+
+  // A whole-game counter, not a round score: deliberately no `ensureRound` call
+  // and no read or write of `scores`, `currentRound`, `settledRounds`, `screen`
+  // or `revealedIds`, so the central invariant
+  // `settledRounds ∈ {currentRound, currentRound + 1}` survives every penalty
+  // path by construction. It writes one ref, so a projection window sees a
+  // single `storage` event and no intermediate state.
+  function adjustPenalty(playerId: number, delta: number) {
+    players.value = players.value.map((player) => {
+      if (player.id !== playerId) {
+        return player
+      }
+
+      return {
+        ...player,
+        penalties: Math.max(MIN_PENALTY, Math.min(MAX_PENALTY, player.penalties + delta)),
+      }
+    })
+  }
+
+  function incrementPenalty(playerId: number) {
+    adjustPenalty(playerId, 1)
+  }
+
+  function decrementPenalty(playerId: number) {
+    adjustPenalty(playerId, -1)
   }
 
   // Closes the round: its points become public (and so projectable), and the
@@ -387,6 +422,21 @@ export const useGameStore = defineStore('game', () => {
     return player.scores.slice(0, settledRounds.value).reduce((sum, score) => sum + score, 0)
   }
 
+  function getPenalty(player: Player) {
+    return player.penalties
+  }
+
+  // End of game only, and the ONLY penalty-aware reading of the totals: the
+  // total screen alone (TotalGrid.vue), for both the number it shows and the
+  // order it ranks by. `getTotalScore`, `getSettledScore` and `getRevealScore`
+  // must stay penalty-free, or the deduction leaks onto the round and reveal
+  // screens and onto the projection scoreboard before the game is over.
+  // Allowed to go negative on purpose: clamping the net at zero would hide the
+  // difference between "penalised to nothing" and "penalised past nothing".
+  function getFinalScore(player: Player) {
+    return getSettledScore(player) - player.penalties
+  }
+
   function isRevealed(player: Player) {
     return revealedIds.value.includes(player.id)
   }
@@ -397,9 +447,6 @@ export const useGameStore = defineStore('game', () => {
     roundNumber,
     settledRounds,
     revealedIds,
-    roundCount,
-    roundMajor,
-    roundMinor,
     gridMajor,
     gridMinor,
     screen,
@@ -412,6 +459,8 @@ export const useGameStore = defineStore('game', () => {
     resumeGame,
     incrementScore,
     decrementScore,
+    incrementPenalty,
+    decrementPenalty,
     endRound,
     revealPlayer,
     nextRound,
@@ -424,6 +473,8 @@ export const useGameStore = defineStore('game', () => {
     getRevealScore,
     getTotalScore,
     getSettledScore,
+    getPenalty,
+    getFinalScore,
     isRevealed,
   }
 })

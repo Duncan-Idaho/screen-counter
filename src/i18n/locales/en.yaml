@@ -18,7 +18,12 @@ round:
   nextRound: Next round
   endGame: End game
   increment: Increment {name}
+  decrement: Decrement {name}
   total: "Total: {n}"
+  # U+2212 MINUS SIGN, matching the glyph on the minus buttons.
+  penalty: "− {n}"
+  penaltyIncrement: Add a penalty to {name}
+  penaltyDecrement: Remove a penalty from {name}
 
 reveal:
   title: "Round {n} results"
@@ -27,6 +32,7 @@ reveal:
 total:
   title: Totals
   backToGame: Back to game
+  penaltyLabel: Penalty
 
 projection:
   waiting: Waiting for the game to start.
@@ -34,6 +40,10 @@ projection:
 settings:
   title: Display settings
   back: Back
+  penalties:
+    title: Penalties
+    label: Enable end-of-game penalties
+    hint: Penalty points are counted per team for the whole game and subtracted only on the totals screen.
   background:
     title: Background
     choose: Choose background
@@ -64,7 +74,7 @@ settings:
       control: Plus / minus buttons
       danger: Danger
       positive: Plus button (active)
-      negative: Minus button (active)
+      negative: Penalty buttons
       positiveGlow: Projection glow (score up)
       negativeGlow: Projection glow (score down)
       confetti: Projection confetti

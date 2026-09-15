@@ -154,6 +154,25 @@ function openProjectionWindow() {
       </div>
     </header>
 
+    <h3>{{ t('settings.penalties.title') }}</h3>
+
+    <div class="penalties-form">
+      <!-- The <label> wrapper makes the whole tile a hit target and supplies the
+           checkbox's accessible name, so no aria-label is needed. -->
+      <label class="toggle-row">
+        <span>{{ t('settings.penalties.label') }}</span>
+        <input
+          type="checkbox"
+          class="toggle-input"
+          :checked="settings.penaltiesEnabled"
+          @change="settings.setPenaltiesEnabled(($event.target as HTMLInputElement).checked)"
+        />
+      </label>
+      <p class="toggle-hint">{{ t('settings.penalties.hint') }}</p>
+    </div>
+
+    <hr class="setup-divider" />
+
     <h3>{{ t('settings.language.title') }}</h3>
 
     <div class="language-form">

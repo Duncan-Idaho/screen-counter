@@ -6,9 +6,10 @@ import { parseColor } from '@/lib/color'
 import { normalizeFontFamily } from '@/lib/font'
 import { detectBrowserLocale, isSupportedLocale, type Locale } from '@/i18n/locale'
 
-// Appearance and language: no player, score or screen state lives here. The defaults
-// are the colors main.css ships in `:root`, so an untouched theme renders
-// exactly like before the settings screen existed.
+// Appearance, language, and the one gameplay opt-in (`penaltiesEnabled`): no
+// player, score or screen state lives here. The defaults are the colors main.css
+// ships in `:root`, so an untouched theme renders exactly like before the
+// settings screen existed.
 export const DEFAULT_THEME = {
   text: '#f7f2ec',
   overlay: 'rgba(28, 18, 12, 0.65)',
@@ -84,6 +85,12 @@ export const useSettingsStore = defineStore('settings', () => {
   // Default only applies on first visit (key absent), so the browser language
   // wins until the user picks one from the settings screen.
   const locale = useLocalStorage<Locale>('screen-counter:locale', detectBrowserLocale())
+  // The one gameplay opt-in in this store. It lives here rather than in game.ts
+  // for the same reason `locale` does: it is an operator preference that has to
+  // survive `startGame`, and game.ts is the state machine, not the preference
+  // store. Deliberately not a THEME_FIELDS key - it is a boolean, not a color -
+  // so it follows the scalar pattern `locale`/`font` set instead.
+  const penaltiesEnabled = useLocalStorage('screen-counter:penalties-enabled', true)
 
   // Repair whatever came back from localStorage. Keep this defensive: persisted
   // data from older versions can be any shape.
@@ -97,6 +104,11 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     font.value = normalizeFontFamily(font.value) ?? DEFAULT_FONT
+
+    // Defensively redundant - VueUse's boolean serializer is total, so anything
+    // that is not 'true' already reads as false - but sanitizeSettings stays the
+    // one documented repair point for every field.
+    penaltiesEnabled.value = penaltiesEnabled.value === true
 
     const source = (theme.value ?? {}) as Partial<Record<ThemeKey, unknown>>
 
@@ -152,6 +164,10 @@ export const useSettingsStore = defineStore('settings', () => {
     font.value = DEFAULT_FONT
   }
 
+  function setPenaltiesEnabled(value: boolean) {
+    penaltiesEnabled.value = value === true
+  }
+
   function setLocale(value: Locale) {
     if (isSupportedLocale(value)) {
       locale.value = value
@@ -178,11 +194,13 @@ export const useSettingsStore = defineStore('settings', () => {
     theme,
     font,
     locale,
+    penaltiesEnabled,
     cssVars,
     setColor,
     resetTheme,
     setFont,
     resetFont,
+    setPenaltiesEnabled,
     setLocale,
     setBackgroundImage,
     clearBackgroundImage,

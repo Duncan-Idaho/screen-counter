@@ -18,7 +18,12 @@ round:
   nextRound: Manche suivante
   endGame: Terminer la partie
   increment: Ajouter un point à {name}
+  decrement: Retirer un point à {name}
   total: "Total : {n}"
+  # U+2212 MINUS SIGN, matching the glyph on the minus buttons.
+  penalty: "− {n}"
+  penaltyIncrement: Ajouter une pénalité à {name}
+  penaltyDecrement: Retirer une pénalité à {name}
 
 reveal:
   title: "Manche {n} - Résultats"
@@ -27,6 +32,7 @@ reveal:
 total:
   title: Totaux
   backToGame: Retour à la partie
+  penaltyLabel: Pénalité
 
 projection:
   waiting: En attente du début de la partie.
@@ -34,6 +40,10 @@ projection:
 settings:
   title: Paramètres d'affichage
   back: Retour
+  penalties:
+    title: Pénalités
+    label: Activer les pénalités de fin de partie
+    hint: Les pénalités sont comptées par équipe pour toute la partie et ne sont déduites que sur l'écran des totaux.
   background:
     title: Arrière-plan
     choose: Choisir un arrière-plan
@@ -64,7 +74,7 @@ settings:
       control: Boutons plus / moins
       danger: Danger
       positive: Bouton plus (actif)
-      negative: Bouton moins (actif)
+      negative: Boutons de pénalité
       positiveGlow: Halo de projection (score en hausse)
       negativeGlow: Halo de projection (score en baisse)
       confetti: Confettis de projection

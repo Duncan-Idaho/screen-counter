@@ -25,6 +25,12 @@
   --positive-bg-hover: color-mix(in srgb, var(--positive-bg) 80%, white);
   --negative-bg-hover: color-mix(in srgb, var(--negative-bg) 80%, white);
 
+  /* Penalty text - the card's red "− 3" and the total screen's penalty chip -
+     derived from --negative-bg just like the hovers above, so the one "Penalty
+     buttons" picker themes the whole feature. The mix lifts the low-alpha red
+     into something legible as *text*, which the raw background colour is not. */
+  --penalty-text: color-mix(in srgb, var(--negative-bg) 78%, white);
+
   /* Themeable, but not part of the palette: bound on `.app` the same way, and
      mirrored by DEFAULT_FONT in src/stores/settings.ts. */
   --app-font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
@@ -95,9 +101,45 @@ body {
 }
 
 /* One control, but it keeps the grid idiom of the sections around it. */
-.font-form {
+.font-form,
+.penalties-form {
   display: grid;
   gap: 0.5vmax;
+}
+
+/* Borrows ColorPicker's labelled-row language - label left, control right, on a
+   --card-bg tile - so the app's first checkbox sits in the settings screen as if
+   it had always been there. */
+.toggle-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6vmax;
+  padding: 0.5vmax 0.8vmax;
+  border-radius: 0.45vmax;
+  background: var(--card-bg);
+  cursor: pointer;
+}
+
+/* The generic `input` rule below paints every input white with a border and
+   padding, which on a checkbox fills the box and hides the native tick. Undo all
+   of it before accent-color can do anything. */
+.toggle-input {
+  width: 2.4vmax;
+  min-width: 24px;
+  height: 2.4vmax;
+  min-height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  accent-color: var(--button-bg);
+  cursor: pointer;
+}
+
+.toggle-hint {
+  padding: 0 0.8vmax;
+  opacity: 0.8;
 }
 
 h1,
@@ -481,14 +523,50 @@ h3 {
   line-height: 1;
 }
 
+/* The gross total and its penalty annotation share one line, so the card still
+   reads as two rows of text rather than three. */
+.total-line {
+  display: flex;
+  /* Wraps as a whole value, never mid-string: a flex item's `min-width: auto`
+     lets it shrink under its own text, which on a narrow portrait card broke
+     "Total : 9" across two lines with the penalty stranded beside it. The
+     `nowrap` below keeps each value intact; this lets the penalty drop to its
+     own line when the pair genuinely cannot sit side by side. */
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4vmax;
+  min-width: 0;
+}
+
+.total-line > * {
+  white-space: nowrap;
+}
+
 .total-score {
   font-size: 20cqmin;
   opacity: 0.92;
 }
 
+.penalty-score {
+  font-size: 20cqmin;
+  font-weight: 700;
+  color: var(--penalty-text);
+}
+
+/* Two values on the line where there is normally one, so both give up some
+   size to stay side by side - which is the point of the annotation. */
+.total-line--penalty .total-score,
+.total-line--penalty .penalty-score {
+  font-size: 15cqmin;
+}
+
 .score-controls {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  /* Auto rows rather than fixed tracks: the column holds two buttons or four
+     depending on the penalties setting, and explicit tracks would leave two
+     empty rows - and half-height +/- buttons - whenever it is off. */
+  grid-auto-rows: 1fr;
   min-height: 100%;
 }
 
@@ -496,12 +574,19 @@ h3 {
   border: 0;
   border-left: 1px solid var(--card-border);
   border-radius: 0;
+  /* The generic `button` rule's padding and the app's 1.3 line-height are dead
+     weight inside a grid cell, and are what make four rows tight. */
+  padding: 0;
+  line-height: 1;
   font-size: 20cqmin;
   color: #fff;
   background: var(--control-bg);
 }
 
-.score-controls .plus {
+/* Thin rule inside each pair; with only two buttons this renders exactly as it
+   always has. */
+.score-controls .plus,
+.score-controls .penalty-plus {
   border-bottom: 1px solid var(--card-border);
 }
 
@@ -509,9 +594,8 @@ h3 {
   background: var(--control-bg-hover);
 }
 
-/* Pending per-song delta feedback: the plus/minus buttons pick up the
-   themeable positive/negative colors once the song's running tally leans
-   positive or negative. */
+/* Pending per-song delta feedback: the plus button picks up the themeable
+   positive color once the song's running tally leans positive. */
 .score-controls .plus.is-positive {
   background: var(--positive-bg);
 }
@@ -520,12 +604,29 @@ h3 {
   background: var(--positive-bg-hover);
 }
 
-.score-controls .minus.is-negative {
+/* Heavier rule between the score pair and the penalty pair: both pairs carry
+   the same two glyphs, so this separator and the color below are the only
+   things telling the operator which half they are about to hit. */
+.score-controls .penalty-plus {
+  border-top: max(2px, 0.5cqmin) solid var(--penalty-text);
+}
+
+/* Always tinted, unlike .plus.is-positive: the pairs have to be distinguishable
+   *before* the click, not as feedback after it. */
+.score-controls .penalty-plus,
+.score-controls .penalty-minus {
   background: var(--negative-bg);
 }
 
-.score-controls .minus.is-negative:hover {
+.score-controls .penalty-plus:hover,
+.score-controls .penalty-minus:hover {
   background: var(--negative-bg-hover);
+}
+
+/* Four rows halve each button's height, but cqmin tracks the card's shorter
+   side, which does not shrink to match. */
+.score-controls--penalty button {
+  font-size: 16cqmin;
 }
 
 .total-card {
@@ -589,6 +690,22 @@ h3 {
   line-height: 1;
 }
 
+/* The end-of-game penalty, as one more chip in the breakdown so it takes part in
+   the same wrap and the same portrait transpose as the rounds. Making room for
+   it is TotalGrid's job (it feeds --round-major/--round-minor a cell count that
+   includes this chip), not this rule's - .round-list clips its overflow, so a
+   grid sized for the rounds alone would drop the chip silently. */
+.round-item--penalty {
+  background: color-mix(in srgb, var(--negative-bg) 32%, transparent);
+  color: var(--penalty-text);
+}
+
+/* "− 99" is wider than the two digits 50cqmin is sized for, and .round-item
+   clips rather than spills. */
+.round-item--penalty span {
+  font-size: 34cqmin;
+}
+
 @media (orientation: portrait) {
   :root {
     --score-control-width: 25%;
@@ -622,6 +739,21 @@ h3 {
 
   .score-card--readonly:not(.total-card) {
     grid-template-columns: 1fr;
+  }
+
+  /* Portrait cards are tall and narrow, so cqmin tracks the card's width while
+     the four control rows divide its height - the one combination where the
+     landscape 16cqmin is still too generous. */
+  .score-controls--penalty button {
+    font-size: 12cqmin;
+  }
+
+  /* Same squeeze one level worse for the total line: the control column takes a
+     quarter of an already narrow card, so the total and its penalty need to be
+     smaller again to stay on one line. */
+  .total-line--penalty .total-score,
+  .total-line--penalty .penalty-score {
+    font-size: 11cqmin;
   }
 
   .theme-form {

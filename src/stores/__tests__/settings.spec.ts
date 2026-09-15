@@ -228,4 +228,42 @@ describe('settings store', () => {
       expect(settings.font).toBe(DEFAULT_FONT)
     })
   })
+
+  describe('penalties', () => {
+    it('defaults to off', () => {
+      const settings = useSettingsStore()
+
+      expect(settings.penaltiesEnabled).toBe(false)
+    })
+
+    it('toggles on and back off', () => {
+      const settings = useSettingsStore()
+
+      settings.setPenaltiesEnabled(true)
+      expect(settings.penaltiesEnabled).toBe(true)
+
+      settings.setPenaltiesEnabled(false)
+      expect(settings.penaltiesEnabled).toBe(false)
+    })
+
+    it('persists the flag across sessions', async () => {
+      const firstSessionStore = useSettingsStore()
+      firstSessionStore.setPenaltiesEnabled(true)
+      await nextTick()
+
+      // useLocalStorage keeps booleans raw, so no JSON here.
+      expect(localStorage.getItem('screen-counter:penalties-enabled')).toBe('true')
+
+      setActivePinia(createPinia())
+      expect(useSettingsStore().penaltiesEnabled).toBe(true)
+    })
+
+    it('reads any non-true persisted value as off', () => {
+      localStorage.setItem('screen-counter:penalties-enabled', 'yes')
+
+      const settings = useSettingsStore()
+
+      expect(settings.penaltiesEnabled).toBe(false)
+    })
+  })
 })

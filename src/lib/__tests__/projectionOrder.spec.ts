@@ -3,7 +3,7 @@ import type { Player } from '@/stores/game'
 import { sortByTotalScore } from '../projectionOrder'
 
 function player(id: number, name: string, scores: number[]): Player {
-  return { id, name, scores }
+  return { id, name, scores, penalties: 0 }
 }
 
 function total(p: Player) {
