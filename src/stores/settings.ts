@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { fileToBackgroundDataUrl, isValidBackgroundValue } from '@/lib/backgroundImage'
 import { parseColor } from '@/lib/color'
+import { normalizeFontFamily } from '@/lib/font'
 import { detectBrowserLocale, isSupportedLocale, type Locale } from '@/i18n/locale'
 
 // Appearance and language: no player, score or screen state lives here. The defaults
@@ -26,6 +27,14 @@ export const DEFAULT_THEME = {
 
 export type ThemeKey = keyof typeof DEFAULT_THEME
 export type Theme = Record<ThemeKey, string>
+
+// Mirrors the `--app-font` default in main.css's `:root` for the same reason
+// DEFAULT_THEME mirrors the palette: an untouched setting has to render exactly
+// as it did before the font was themeable. Already normalized, so sanitizing it
+// is a no-op. The last-resort `sans-serif` lives in the CSS, not here, so the
+// picker's text input shows only what the operator actually chose.
+export const DEFAULT_FONT =
+  'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue"'
 
 // Order drives the settings screen; each field's label is the i18n key
 // `themeFieldLabelKey(key)` resolves (see `settings.theme.fields.*` in the catalogs).
@@ -68,6 +77,10 @@ const THEME_KEYS = Object.keys(DEFAULT_THEME) as ThemeKey[]
 export const useSettingsStore = defineStore('settings', () => {
   const backgroundImage = useLocalStorage<string>('screen-counter:bg-image', '')
   const theme = useLocalStorage<Theme>('screen-counter:theme', { ...DEFAULT_THEME })
+  // A scalar setting alongside the theme rather than a key inside it: a font is
+  // not a color, so it would only fight `parseColor` and the one-ColorPicker-per
+  // -THEME_FIELDS loop. Modeled on `locale` instead.
+  const font = useLocalStorage<string>('screen-counter:font', DEFAULT_FONT)
   // Default only applies on first visit (key absent), so the browser language
   // wins until the user picks one from the settings screen.
   const locale = useLocalStorage<Locale>('screen-counter:locale', detectBrowserLocale())
@@ -83,6 +96,8 @@ export const useSettingsStore = defineStore('settings', () => {
       locale.value = detectBrowserLocale()
     }
 
+    font.value = normalizeFontFamily(font.value) ?? DEFAULT_FONT
+
     const source = (theme.value ?? {}) as Partial<Record<ThemeKey, unknown>>
 
     // Rebuilt from DEFAULT_THEME rather than patched in place, so unknown keys
@@ -97,12 +112,16 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Bound inline on `.app` in App.vue, the same way `--bg-image` already is, so
   // the overrides win over the `:root` defaults in main.css.
-  const cssVars = computed(() =>
-    THEME_KEYS.reduce<Record<string, string>>((vars, key) => {
-      vars[THEME_CSS_VARS[key]] = theme.value[key]
-      return vars
-    }, {}),
-  )
+  const cssVars = computed(() => {
+    const vars = THEME_KEYS.reduce<Record<string, string>>((result, key) => {
+      result[THEME_CSS_VARS[key]] = theme.value[key]
+      return result
+    }, {})
+
+    vars['--app-font'] = font.value
+
+    return vars
+  })
 
   function setColor(key: ThemeKey, value: string) {
     if (!parseColor(value)) {
@@ -114,6 +133,23 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function resetTheme() {
     theme.value = { ...DEFAULT_THEME }
+  }
+
+  // Stores the normalized form, so what comes back out is what the CSS uses.
+  function setFont(value: string) {
+    const normalized = normalizeFontFamily(value)
+
+    if (!normalized) {
+      return
+    }
+
+    font.value = normalized
+  }
+
+  // Its own action rather than a line in resetTheme: the font is a parallel
+  // setting, and "Reset theme" should not silently change the typeface too.
+  function resetFont() {
+    font.value = DEFAULT_FONT
   }
 
   function setLocale(value: Locale) {
@@ -140,10 +176,13 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     backgroundImage,
     theme,
+    font,
     locale,
     cssVars,
     setColor,
     resetTheme,
+    setFont,
+    resetFont,
     setLocale,
     setBackgroundImage,
     clearBackgroundImage,

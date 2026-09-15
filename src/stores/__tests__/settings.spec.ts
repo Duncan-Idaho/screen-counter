@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
-import { DEFAULT_THEME, useSettingsStore } from '../settings'
+import { DEFAULT_FONT, DEFAULT_THEME, useSettingsStore } from '../settings'
 import type { Locale } from '@/i18n/locale'
 
 describe('settings store', () => {
@@ -155,6 +155,77 @@ describe('settings store', () => {
       settings.setLocale('es' as Locale)
 
       expect(settings.locale).toBe('en')
+    })
+  })
+
+  describe('font', () => {
+    it('defaults to the stack main.css already shipped', () => {
+      const settings = useSettingsStore()
+
+      expect(settings.font).toBe(DEFAULT_FONT)
+    })
+
+    it('maps the font onto the css custom property main.css consumes', () => {
+      const settings = useSettingsStore()
+
+      settings.setFont('Comic Sans MS')
+
+      expect(settings.cssVars['--app-font']).toBe('"Comic Sans MS"')
+    })
+
+    it('stores the normalized form', () => {
+      const settings = useSettingsStore()
+
+      settings.setFont("  'Segoe UI' ,Roboto ")
+
+      expect(settings.font).toBe('"Segoe UI", Roboto')
+    })
+
+    it('ignores a value the validator rejects', () => {
+      const settings = useSettingsStore()
+
+      settings.setFont('Arial; background: red')
+
+      expect(settings.font).toBe(DEFAULT_FONT)
+    })
+
+    it('persists an override across sessions', async () => {
+      const firstSession = useSettingsStore()
+      firstSession.setFont('Roboto')
+      await nextTick()
+
+      setActivePinia(createPinia())
+      const secondSession = useSettingsStore()
+
+      expect(secondSession.font).toBe('Roboto')
+    })
+
+    it('repairs a corrupt persisted font', () => {
+      // A string ref, so useLocalStorage keeps it raw - no JSON.stringify.
+      localStorage.setItem('screen-counter:font', 'Arial}body{color:red')
+
+      const settings = useSettingsStore()
+
+      expect(settings.font).toBe(DEFAULT_FONT)
+    })
+
+    it('normalizes a persisted font that was stored unnormalized', () => {
+      localStorage.setItem('screen-counter:font', 'Segoe UI')
+
+      const settings = useSettingsStore()
+
+      expect(settings.font).toBe('"Segoe UI"')
+    })
+
+    it('is left alone by resetTheme and restored by resetFont', () => {
+      const settings = useSettingsStore()
+      settings.setFont('Roboto')
+
+      settings.resetTheme()
+      expect(settings.font).toBe('Roboto')
+
+      settings.resetFont()
+      expect(settings.font).toBe(DEFAULT_FONT)
     })
   })
 })

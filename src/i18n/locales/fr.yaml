@@ -40,6 +40,17 @@ settings:
     remove: Supprimer l'arrière-plan
     error: Impossible d'utiliser cette image.
     errorDetail: "Impossible d'utiliser cette image : {message}"
+  font:
+    title: Police
+    label: Famille de police
+    placeholder: ex. Segoe UI
+    browse: Parcourir les polices installées
+    noMatches: Aucune police installée ne correspond à ce nom.
+    reset: Réinitialiser la police
+    previewName: Alice
+    unsupportedHint: La liste des polices installées nécessite Chrome ou Edge. Vous pouvez tout de même saisir un nom de police.
+    errorDenied: L'autorisation de lister vos polices installées a été refusée.
+    error: Impossible de lister les polices installées.
   theme:
     title: Thème
     reset: Réinitialiser le thème

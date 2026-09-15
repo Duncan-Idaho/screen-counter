@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/game'
 import { THEME_FIELDS, themeFieldLabelKey, useSettingsStore } from '@/stores/settings'
 import ColorPicker from './ColorPicker.vue'
+import FontPicker from './FontPicker.vue'
 import ScoreGrid from './ScoreGrid.vue'
 import TotalGrid from './TotalGrid.vue'
 import type { Locale } from '@/i18n/locale'
@@ -192,6 +193,20 @@ function openProjectionWindow() {
       </button>
     </div>
     <p v-if="backgroundError" class="background-error">{{ backgroundError }}</p>
+
+    <hr class="setup-divider" />
+
+    <h3>{{ t('settings.font.title') }}</h3>
+
+    <div class="font-form">
+      <FontPicker :model-value="settings.font" @update:model-value="settings.setFont($event)" />
+    </div>
+
+    <div class="setup-actions">
+      <button type="button" class="danger" @click="settings.resetFont()">
+        {{ t('settings.font.reset') }}
+      </button>
+    </div>
 
     <hr class="setup-divider" />
 

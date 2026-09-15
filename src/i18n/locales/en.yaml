@@ -40,6 +40,17 @@ settings:
     remove: Remove background
     error: Could not use that image.
     errorDetail: "Could not use that image: {message}"
+  font:
+    title: Font
+    label: Font family
+    placeholder: e.g. Segoe UI
+    browse: Browse installed fonts
+    noMatches: No installed font matches that name.
+    reset: Reset font
+    previewName: Alice
+    unsupportedHint: Listing installed fonts requires Chrome or Edge. You can still type a font name.
+    errorDenied: Permission to list your installed fonts was denied.
+    error: Could not list the installed fonts.
   theme:
     title: Theme
     reset: Reset theme

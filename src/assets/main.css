@@ -25,6 +25,11 @@
   --positive-bg-hover: color-mix(in srgb, var(--positive-bg) 80%, white);
   --negative-bg-hover: color-mix(in srgb, var(--negative-bg) 80%, white);
 
+  /* Themeable, but not part of the palette: bound on `.app` the same way, and
+     mirrored by DEFAULT_FONT in src/stores/settings.ts. */
+  --app-font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue";
+
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
   --score-control-width: 25%;
@@ -48,6 +53,12 @@ body {
   background-position: center;
   background-size: cover;
   color: var(--app-text);
+  /* The trailing sans-serif is the last resort when a chosen family is not
+     installed on the machine; --app-font itself holds only what the operator
+     picked. base.css sets a font-family on `body`, but that is a parent of
+     `.app` and so out of reach of the settings store - this is the declaration
+     that makes the typeface themeable at all. */
+  font-family: var(--app-font), sans-serif;
 }
 
 .shell {
@@ -80,6 +91,12 @@ body {
 .theme-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5vmax;
+}
+
+/* One control, but it keeps the grid idiom of the sections around it. */
+.font-form {
+  display: grid;
   gap: 0.5vmax;
 }
 
