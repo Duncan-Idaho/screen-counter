@@ -95,9 +95,27 @@ function openProjectionWindow() {
 
   <section v-else-if="game.screen === 'round'" class="panel round-panel">
     <header class="panel-header">
-      <h2>{{ t('round.title', { n: game.roundNumber, song: game.songNumber }) }}</h2>
+      <h2>{{ t('round.title', { n: game.roundNumber }) }}</h2>
       <div class="actions">
-        <button type="button" @click="game.nextSong">{{ t('round.nextSong') }}</button>
+        <button type="button" @click="game.endRound">{{ t('round.endRound') }}</button>
+        <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
+        <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
+        <button type="button" @click="openProjectionWindow">
+          {{ t('common.openProjection') }}
+        </button>
+        <button type="button" @click="game.openSettings">{{ t('common.settings') }}</button>
+      </div>
+    </header>
+
+    <ScoreGrid mode="tally" />
+  </section>
+
+  <!-- Same shell as the round screen, minus the +/- controls: the operator now
+       only clicks a card to reveal that team on the projection window. -->
+  <section v-else-if="game.screen === 'reveal'" class="panel round-panel">
+    <header class="panel-header">
+      <h2>{{ t('reveal.title', { n: game.roundNumber }) }}</h2>
+      <div class="actions">
         <button type="button" @click="game.nextRound">{{ t('round.nextRound') }}</button>
         <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
         <button type="button" @click="game.goToSetup">{{ t('common.setup') }}</button>
@@ -108,7 +126,7 @@ function openProjectionWindow() {
       </div>
     </header>
 
-    <ScoreGrid :interactive="true" />
+    <ScoreGrid mode="reveal" />
   </section>
 
   <section v-else-if="game.screen === 'total'" class="panel total-panel">

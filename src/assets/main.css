@@ -294,14 +294,66 @@ h3 {
      shorter side, so type stays proportional in both orientations. */
   container-type: size;
   /* Drives the projection window's highlight glow fading in and out
-     (ScoreCard.vue) - see .score-card--positive/--negative below. */
+     (ScoreboardCard.vue) - see .score-card--positive/--negative below. */
   transition: box-shadow 1s ease;
 }
 
-/* Projection window only (ScoreGrid.vue passes sortedIds/highlight state only
-   when !interactive): the reorder slide (must match MOVE_DURATION_MS in
-   projectionOrder.ts) and the score-change glow. A ring rather than a solid
-   fill, so it doesn't fight the user's chosen card text color. */
+/* The projection window's scoreboard. During a round it holds every team,
+   frozen; at the end of one it empties and fills back up a card at a time, each
+   slotting into settled-score order so the ones already there slide aside to
+   make room. Card boxes are sized from the *roster* (--grid-major/--grid-minor,
+   like .score-grid) rather than from how many are currently shown, so a card
+   never resizes as the reveal fills up; the flex centring is what puts the
+   first card in the middle of the screen. */
+.scoreboard-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: var(--ui-gap);
+  height: 100%;
+  min-height: 0;
+}
+
+.scoreboard-grid > .score-card {
+  flex: 0 0 auto;
+  width: calc((100% - var(--ui-gap) * (var(--grid-major, 4) - 1)) / var(--grid-major, 4));
+  height: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
+  /* Hold the confetti back until the card has finished taking its place -
+     must match CONFETTI_DELAY_MS in projectionOrder.ts. */
+  --confetti-delay: 600ms;
+}
+
+/* Must match REVEAL_ENTER_MS / REVEAL_MOVE_MS in projectionOrder.ts. */
+.scoreboard-enter-from {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.scoreboard-enter-active {
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
+.scoreboard-move {
+  transition: transform 0.6s ease;
+}
+
+/* End of round clears the whole board at once, so the cards can fade out in
+   place - nothing is entering that would need the room back. */
+.scoreboard-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.scoreboard-leave-to {
+  opacity: 0;
+}
+
+/* Projection window only (TotalGrid.vue sorts by settled score when `sorted`):
+   the reorder slide, which must match MOVE_DURATION_MS in projectionOrder.ts.
+   The glow below is a ring rather than a solid fill, so it doesn't fight the
+   user's chosen card text color. */
 .score-order-move {
   transition: transform 2s ease;
 }
@@ -341,7 +393,7 @@ h3 {
   margin: -3cqmin;
   background: var(--confetti);
   animation: confetti-fly 1.4s ease-out forwards;
-  animation-delay: calc(var(--i) * 30ms);
+  animation-delay: calc(var(--confetti-delay, 0ms) + var(--i) * 30ms);
 }
 
 @keyframes confetti-fly {
@@ -355,15 +407,22 @@ h3 {
   }
 }
 
-/* ProjectionScreen's round view passes interactive: false to ScoreGrid, which
-   omits .score-controls entirely - collapse the column reserved for it so the
-   score fills the full card width instead of leaving it blank. */
+/* Cards without .score-controls - the projection window's, and the control
+   window's once the round is closed - collapse the column reserved for the
+   +/- buttons so the score fills the full card width instead of leaving it
+   blank. */
 .score-card--readonly {
   grid-template-columns: 1fr;
 }
 
-.score-card--readonly .score-content {
+.scoreboard-grid .score-card--readonly .score-content {
   cursor: default;
+}
+
+/* Control window, reveal screen: this team is already up on the projection, so
+   dim it and leave the operator only the cards still to reveal. */
+.score-card--revealed {
+  opacity: 0.55;
 }
 
 .score-card h3 {
@@ -514,6 +573,13 @@ h3 {
     /* Portrait: transpose so the larger axis runs down the screen. */
     grid-template-columns: repeat(var(--grid-minor, 2), minmax(0, 1fr));
     grid-template-rows: repeat(var(--grid-major, 4), minmax(0, 1fr));
+  }
+
+  .scoreboard-grid > .score-card {
+    /* Same transposition, done on the card box since .scoreboard-grid is a
+       centred flex flow rather than a grid. */
+    width: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
+    height: calc((100% - var(--ui-gap) * (var(--grid-major, 4) - 1)) / var(--grid-major, 4));
   }
 
   .round-list {

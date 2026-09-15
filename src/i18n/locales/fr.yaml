@@ -13,12 +13,16 @@ setup:
   resume: Reprendre
 
 round:
-  title: "Manche {n} - Chanson {song}"
-  nextSong: Chanson suivante
+  title: "Manche {n}"
+  endRound: Fin de manche
   nextRound: Manche suivante
   endGame: Terminer la partie
   increment: Ajouter un point à {name}
   total: "Total : {n}"
+
+reveal:
+  title: "Manche {n} - Résultats"
+  reveal: Révéler {name}
 
 total:
   title: Totaux

@@ -13,12 +13,16 @@ setup:
   resume: Resume
 
 round:
-  title: "Round {n} - Song {song}"
-  nextSong: Next song
+  title: "Round {n}"
+  endRound: End of round
   nextRound: Next round
   endGame: End game
   increment: Increment {name}
   total: "Total: {n}"
+
+reveal:
+  title: "Round {n} results"
+  reveal: Reveal {name}
 
 total:
   title: Totals

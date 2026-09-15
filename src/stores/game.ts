@@ -2,7 +2,7 @@ import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 
-export type ScreenName = 'setup' | 'round' | 'total' | 'settings'
+export type ScreenName = 'setup' | 'round' | 'reveal' | 'total' | 'settings'
 
 // Screens the settings screen can return to; `settings` itself is excluded so a
 // round-trip can never land back on it.
@@ -19,34 +19,38 @@ const MAX_SCORE = 99
 
 export const useGameStore = defineStore('game', () => {
   const players = useLocalStorage<Player[]>('screen-counter:players', [])
+  // The round the operator is scoring right now. Its points are edited straight
+  // into `scores[currentRound]` and stay private until `endRound` settles them.
   const currentRound = useLocalStorage('screen-counter:current-round', 0)
-  // Count of songs played in the current round. Bumped by `nextSong`, reset to
-  // zero by `nextRound` and by starting a new game.
-  const currentSong = useLocalStorage('screen-counter:current-song', 0)
-  // Points tallied for the song currently being played, per player id. Not part
-  // of `scores` yet: `nextSong`/`nextRound`/`endGame` apply ("read") them into
-  // the current round's score and reset this back to empty.
-  const songDeltas = useLocalStorage<Record<number, number>>('screen-counter:song-deltas', {})
+  // How many rounds have been made public. Equals `currentRound` while a round
+  // is being scored - the tally in progress must never leak to the audience -
+  // and `currentRound + 1` once `endRound`/`endGame` has settled it. Kept
+  // orthogonal to `currentRound` on purpose: settling a round must not invent a
+  // new, unplayed one.
+  const settledRounds = useLocalStorage('screen-counter:settled-rounds', 0)
+  // Ids already revealed on the reveal screen, in click order. The projection
+  // window renders exactly these, sorted by settled score.
+  const revealedIds = useLocalStorage<number[]>('screen-counter:revealed', [])
   const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
   const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
   const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
     'screen-counter:settings-return',
     'setup',
   )
-  // Which screen a projection window (a second, fully independent app
-  // instance opened via window.open - see MainScreen.vue's
-  // openProjectionWindow and CLAUDE.md) should show. Kept as its own
-  // localStorage-backed field, rather than read directly off `screen`, so it
-  // can be frozen while the operator is on 'setup'/'settings': the audience
-  // display must never flicker to an admin-only screen.
-  const projectionScreen = useLocalStorage<'round' | 'total'>(
+  // Which view a projection window (a second, fully independent app instance
+  // opened via window.open - see MainScreen.vue's openProjectionWindow and
+  // CLAUDE.md) should show. Kept as its own localStorage-backed field, rather
+  // than read directly off `screen`, so it can be frozen while the operator is
+  // on 'setup'/'settings': the audience display must never flicker to an
+  // admin-only screen. 'round' and 'reveal' are the same grid with different
+  // populations (see ScoreboardGrid.vue), not two separate views.
+  const projectionScreen = useLocalStorage<'round' | 'reveal' | 'total'>(
     'screen-counter:projection-screen',
     'round',
   )
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
-  const songNumber = computed(() => currentSong.value + 1)
 
   // Split `count` cells into a landscape-biased grid: `minor` is the smaller
   // axis, `major` the larger (major >= minor). Used for both the player card
@@ -61,11 +65,9 @@ export const useGameStore = defineStore('game', () => {
   const gridMajor = computed(() => splitGrid(players.value.length).major)
   const gridMinor = computed(() => splitGrid(players.value.length).minor)
 
-  // Number of played rounds (longest `scores` array, guarded to >= 1) and the
-  // grid the total screen splits its per-round chips into so they always fit.
-  const roundCount = computed(() =>
-    Math.max(1, ...players.value.map((player) => player.scores.length), currentRound.value + 1),
-  )
+  // Number of rounds the total screen breaks down - the public ones only - and
+  // the grid it splits its per-round chips into so they always fit.
+  const roundCount = computed(() => Math.max(1, settledRounds.value))
   const roundMajor = computed(() => splitGrid(roundCount.value).major)
   const roundMinor = computed(() => splitGrid(roundCount.value).minor)
 
@@ -87,19 +89,15 @@ export const useGameStore = defineStore('game', () => {
       .filter((player) => player.name.length > 0)
   }
 
-  function normalizeSongDeltas(rawSongDeltas: unknown, playerIds: Set<number>) {
-    const source =
-      rawSongDeltas && typeof rawSongDeltas === 'object'
-        ? (rawSongDeltas as Record<string, unknown>)
-        : {}
-    const result: Record<number, number> = {}
+  function normalizeRevealedIds(rawRevealedIds: unknown, playerIds: Set<number>) {
+    const source = Array.isArray(rawRevealedIds) ? rawRevealedIds : []
+    const result: number[] = []
 
-    for (const [key, value] of Object.entries(source)) {
-      const id = Number(key)
-      const delta = Math.trunc(Number(value))
+    for (const value of source) {
+      const id = Math.trunc(Number(value))
 
-      if (playerIds.has(id) && Number.isFinite(delta) && delta !== 0) {
-        result[id] = delta
+      if (playerIds.has(id) && !result.includes(id)) {
+        result.push(id)
       }
     }
 
@@ -109,22 +107,44 @@ export const useGameStore = defineStore('game', () => {
   function sanitizeState() {
     players.value = normalizePlayers(players.value)
     currentRound.value = Math.max(0, Math.floor(Number(currentRound.value) || 0))
-    currentSong.value = Math.max(0, Math.floor(Number(currentSong.value) || 0))
-    songDeltas.value = normalizeSongDeltas(
-      songDeltas.value,
+    // A settled count is only ever `currentRound` (round in progress, nothing
+    // public yet) or one past it (round closed, being revealed).
+    settledRounds.value = Math.min(
+      Math.max(0, Math.floor(Number(settledRounds.value) || 0)),
+      currentRound.value + 1,
+    )
+    revealedIds.value = normalizeRevealedIds(
+      revealedIds.value,
       new Set(players.value.map((player) => player.id)),
     )
 
-    if (!['setup', 'round', 'total', 'settings'].includes(screen.value)) {
+    if (!['setup', 'round', 'reveal', 'total', 'settings'].includes(screen.value)) {
       screen.value = 'setup'
     }
 
-    if (!['setup', 'round', 'total'].includes(settingsReturnScreen.value)) {
+    if (!['setup', 'round', 'reveal', 'total'].includes(settingsReturnScreen.value)) {
       settingsReturnScreen.value = 'setup'
     }
 
-    if (!['round', 'total'].includes(projectionScreen.value)) {
+    if (!['round', 'reveal', 'total'].includes(projectionScreen.value)) {
       projectionScreen.value = 'round'
+    }
+
+    // Nothing settled means nothing to reveal, so an empty reveal screen would
+    // strand both windows. Reachable from state persisted by an older version,
+    // which had no `settledRounds` at all.
+    if (settledRounds.value <= currentRound.value) {
+      if (screen.value === 'reveal') {
+        screen.value = 'round'
+      }
+
+      if (settingsReturnScreen.value === 'reveal') {
+        settingsReturnScreen.value = 'round'
+      }
+
+      if (projectionScreen.value === 'reveal') {
+        projectionScreen.value = 'round'
+      }
     }
 
     const maxPlayerId = players.value.reduce((max, player) => Math.max(max, player.id), 0)
@@ -132,10 +152,10 @@ export const useGameStore = defineStore('game', () => {
 
     if (players.value.length === 0) {
       currentRound.value = 0
-      currentSong.value = 0
-      songDeltas.value = {}
-      // Settings needs no players, so it survives an empty roster; round/total
-      // do not and fall back to setup.
+      settledRounds.value = 0
+      revealedIds.value = []
+      // Settings needs no players, so it survives an empty roster; the game
+      // screens do not and fall back to setup.
       if (screen.value !== 'settings') {
         screen.value = 'setup'
       }
@@ -148,19 +168,19 @@ export const useGameStore = defineStore('game', () => {
 
   sanitizeState()
 
-  // Mirrors `screen` into `projectionScreen` whenever it becomes 'round' or
-  // 'total', and leaves it untouched otherwise (i.e. during 'setup'/
+  // Mirrors `screen` into `projectionScreen` whenever it becomes a screen the
+  // audience may see, and leaves it untouched otherwise (i.e. during 'setup'/
   // 'settings'). A reactive watcher rather than threading this into every
-  // action that sets `screen` (startGame, resumeGame, backToGame, endGame,
-  // goToSetup, openSettings, closeSettings) so it can't be forgotten at a
-  // future call site.
+  // action that sets `screen` (startGame, resumeGame, backToGame, endRound,
+  // nextRound, endGame, goToSetup, openSettings, closeSettings) so it cannot be
+  // forgotten at a future call site.
   // `flush: 'sync'` so this is never one tick behind `screen` - actions like
   // `endGame()` must leave `projectionScreen` already updated by the time they
   // return, matching every other direct `screen.value = ...` assignment here.
   watch(
     screen,
     (next) => {
-      if (next === 'round' || next === 'total') {
+      if (next === 'round' || next === 'reveal' || next === 'total') {
         projectionScreen.value = next
       }
     },
@@ -183,6 +203,7 @@ export const useGameStore = defineStore('game', () => {
 
   function removePlayer(id: number) {
     players.value = players.value.filter((player) => player.id !== id)
+    revealedIds.value = revealedIds.value.filter((revealedId) => revealedId !== id)
   }
 
   function resetScores() {
@@ -191,8 +212,8 @@ export const useGameStore = defineStore('game', () => {
       scores: [0],
     }))
     currentRound.value = 0
-    currentSong.value = 0
-    songDeltas.value = {}
+    settledRounds.value = 0
+    revealedIds.value = []
   }
 
   function startGame() {
@@ -214,7 +235,8 @@ export const useGameStore = defineStore('game', () => {
       scores: player.scores.length > 0 ? [...player.scores] : [0],
     }))
 
-    screen.value = 'round'
+    revealedIds.value = []
+    openRound()
   }
 
   function ensureRound(roundIndex: number) {
@@ -232,33 +254,23 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
-  function getSongDelta(player: Player) {
-    return songDeltas.value[player.id] ?? 0
-  }
-
-  function incrementSongDelta(playerId: number) {
-    songDeltas.value = {
-      ...songDeltas.value,
-      [playerId]: (songDeltas.value[playerId] ?? 0) + 1,
+  // Opens a round nobody has seen yet: moves on to the next one when the
+  // current one has already been made public (end of round, end of game), and
+  // resumes it otherwise. The only place `currentRound` ever advances.
+  function openRound() {
+    if (settledRounds.value > currentRound.value) {
+      currentRound.value += 1
     }
+
+    ensureRound(currentRound.value)
+    screen.value = 'round'
   }
 
-  function decrementSongDelta(playerId: number) {
-    songDeltas.value = {
-      ...songDeltas.value,
-      [playerId]: (songDeltas.value[playerId] ?? 0) - 1,
-    }
-  }
-
-  // Applies each player's pending song delta onto the current round's score
-  // (clamped, like a direct score edit) and clears the deltas back to empty.
-  function commitSongDeltas() {
+  function adjustScore(playerId: number, delta: number) {
     ensureRound(currentRound.value)
 
     players.value = players.value.map((player) => {
-      const delta = songDeltas.value[player.id] ?? 0
-
-      if (delta === 0) {
+      if (player.id !== playerId) {
         return player
       }
 
@@ -268,29 +280,69 @@ export const useGameStore = defineStore('game', () => {
 
       return { ...player, scores }
     })
-
-    songDeltas.value = {}
   }
 
-  function nextSong() {
-    commitSongDeltas()
-    currentSong.value += 1
+  function incrementScore(playerId: number) {
+    adjustScore(playerId, 1)
   }
 
+  function decrementScore(playerId: number) {
+    adjustScore(playerId, -1)
+  }
+
+  // Closes the round: its points become public (and so projectable), and the
+  // reveal starts over with every card hidden.
+  //
+  // The order of these three writes is load-bearing. A projection window
+  // receives each changed key as its own `storage` event and renders every
+  // intermediate combination, so publishing the round before the scoreboard has
+  // emptied would flash the whole round's results at the audience one event
+  // ahead of the reveal - the exact thing this feature exists to prevent.
+  function endRound() {
+    revealedIds.value = []
+    screen.value = 'reveal'
+    settledRounds.value = currentRound.value + 1
+  }
+
+  function revealPlayer(playerId: number) {
+    if (screen.value !== 'reveal' || revealedIds.value.includes(playerId)) {
+      return
+    }
+
+    if (!players.value.some((player) => player.id === playerId)) {
+      return
+    }
+
+    revealedIds.value = [...revealedIds.value, playerId]
+  }
+
+  // `revealedIds` is deliberately left alone here - `endRound` is the only
+  // thing that clears it. Clearing it here would empty the projection's
+  // scoreboard for the one storage event before `projectionScreen` turns back
+  // to 'round', which reads as every card blinking out and straight back in.
   function nextRound() {
-    commitSongDeltas()
-    currentRound.value += 1
-    currentSong.value = 0
-    ensureRound(currentRound.value)
+    openRound()
   }
 
   function endGame() {
-    commitSongDeltas()
+    // Ending mid-round must still count the points tallied so far - but not
+    // when the round is untouched (the usual case: the operator ends the game
+    // right after a reveal, on the round `nextRound` just opened), which would
+    // only add a column of zeros to the recap. `endRound` has no such guard:
+    // closing an all-zero round there is the operator saying so explicitly.
+    // max(), not `currentRound + 1`, so ending from the reveal screen never
+    // settles a second round on top of the one just revealed.
+    const scored = players.value.some((player) => (player.scores[currentRound.value] ?? 0) > 0)
+
+    if (scored) {
+      settledRounds.value = Math.max(settledRounds.value, currentRound.value + 1)
+    }
+
     screen.value = 'total'
   }
 
   function backToGame() {
-    screen.value = 'round'
+    openRound()
   }
 
   function goToSetup() {
@@ -314,16 +366,37 @@ export const useGameStore = defineStore('game', () => {
     return player.scores[currentRound.value] ?? 0
   }
 
+  // What the reveal shows: the last settled round, which during the reveal is
+  // `currentRound` anyway. Derived from `settledRounds` rather than
+  // `currentRound` on purpose - `nextRound` moves `currentRound` on, and a
+  // projection window receives each changed key as its own `storage` event, so
+  // reading `currentRound` here would flash a zero across every card in the gap
+  // before `projectionScreen` catches up.
+  function getRevealScore(player: Player) {
+    return player.scores[settledRounds.value - 1] ?? 0
+  }
+
+  // Everything, round in progress included: the control screen, and it alone.
   function getTotalScore(player: Player) {
     return player.scores.reduce((sum, score) => sum + score, 0)
+  }
+
+  // Public rounds only: everything the audience sees, during a round as well as
+  // during the reveal.
+  function getSettledScore(player: Player) {
+    return player.scores.slice(0, settledRounds.value).reduce((sum, score) => sum + score, 0)
+  }
+
+  function isRevealed(player: Player) {
+    return revealedIds.value.includes(player.id)
   }
 
   return {
     players,
     currentRound,
     roundNumber,
-    currentSong,
-    songNumber,
+    settledRounds,
+    revealedIds,
     roundCount,
     roundMajor,
     roundMinor,
@@ -337,10 +410,10 @@ export const useGameStore = defineStore('game', () => {
     removePlayer,
     startGame,
     resumeGame,
-    getSongDelta,
-    incrementSongDelta,
-    decrementSongDelta,
-    nextSong,
+    incrementScore,
+    decrementScore,
+    endRound,
+    revealPlayer,
     nextRound,
     endGame,
     backToGame,
@@ -348,6 +421,9 @@ export const useGameStore = defineStore('game', () => {
     openSettings,
     closeSettings,
     getCurrentRoundScore,
+    getRevealScore,
     getTotalScore,
+    getSettledScore,
+    isRevealed,
   }
 })
