@@ -183,11 +183,19 @@ button:disabled {
   flex: 1 1 8vmax;
 }
 
-/* Horizontal rule separating the launch buttons from the background picker. */
+/* Horizontal rule between the sections of the setup and settings panels.
+
+   `flex: 0 0` is load-bearing, not tidiness: both panels are scrolling flex
+   columns, and every other child is floored at its min-content height, so once
+   the content outgrows the panel the rule - the one item whose min-content
+   height is 0 - is the only thing flexbox can crush, and it silently collapses
+   to nothing. The vertical margins are on top of the panel's own gap, so a
+   section break reads as wider than the gaps inside a section. */
 .setup-divider {
+  flex: 0 0 1px;
   width: 100%;
   height: 1px;
-  margin: 0;
+  margin: 0.7vmax 0;
   border: 0;
   background: var(--card-border);
 }
@@ -285,17 +293,6 @@ h3 {
   justify-content: flex-end;
 }
 
-.score-grid {
-  display: grid;
-  /* Columns/rows scale with the player count (--grid-major/--grid-minor, set by
-     the store). Landscape puts the larger axis on columns; minmax(0, 1fr) keeps
-     every card inside the locked viewport without scrolling. */
-  grid-template-columns: repeat(var(--grid-major, 4), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--grid-minor, 2), minmax(0, 1fr));
-  gap: var(--ui-gap);
-  min-height: 0;
-}
-
 .score-card {
   position: relative;
   border: 1px solid var(--card-border);
@@ -315,13 +312,16 @@ h3 {
   transition: box-shadow 1s ease;
 }
 
-/* The projection window's scoreboard. During a round it holds every team,
-   frozen; at the end of one it empties and fills back up a card at a time, each
-   slotting into settled-score order so the ones already there slide aside to
-   make room. Card boxes are sized from the *roster* (--grid-major/--grid-minor,
-   like .score-grid) rather than from how many are currently shown, so a card
-   never resizes as the reveal fills up; the flex centring is what puts the
-   first card in the middle of the screen. */
+/* Every card layout in the app: the control window's tally/reveal grids and
+   both total views (.score-grid), and the projection window's scoreboard
+   (.scoreboard-grid). A centred wrap flow rather than a grid, because a grid
+   packs a partial last row to the start - 5 teams would sit 3 + 2 hugging the
+   left edge instead of centred. The card box carries the count instead of the
+   tracks: --grid-major/--grid-minor (from the store, inline on the container)
+   size every card from the *roster*, not from how many are currently on screen,
+   so the wrap still breaks after --grid-major cards and a card is exactly the
+   same size whether the scoreboard holds one revealed team or all of them. */
+.score-grid,
 .scoreboard-grid {
   display: flex;
   flex-wrap: wrap;
@@ -332,10 +332,18 @@ h3 {
   min-height: 0;
 }
 
+.score-grid > .score-card,
 .scoreboard-grid > .score-card {
   flex: 0 0 auto;
   width: calc((100% - var(--ui-gap) * (var(--grid-major, 4) - 1)) / var(--grid-major, 4));
   height: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
+}
+
+/* The reveal empties the scoreboard and fills it back up a card at a time, each
+   slotting into settled-score order so the ones already there slide aside to
+   make room - the centring above is also what puts the first revealed card in
+   the middle of the screen. */
+.scoreboard-grid > .score-card {
   /* Hold the confetti back until the card has finished taking its place -
      must match CONFETTI_DELAY_MS in projectionOrder.ts. */
   --confetti-delay: 600ms;
@@ -539,14 +547,20 @@ h3 {
 }
 
 .round-list {
-  /* Split the fixed breakdown area into exactly one cell per round
-     (--round-major/-minor from the store) so every round is always visible;
-     more rounds -> smaller cells -> smaller chips. Transposed in portrait. */
-  display: grid;
-  grid-template-columns: repeat(var(--round-major, 3), minmax(0, 1fr));
-  grid-template-rows: repeat(var(--round-minor, 2), minmax(0, 1fr));
-  gap: 0.5vmax;
+  /* The same centred wrap as .score-grid, one chip per settled round: the chip
+     box is sized from --round-major/--round-minor (the store's round count) so
+     every round is always visible - more rounds -> smaller chips - and a
+     partial last line stays centred. Transposed in portrait.
+     min-width/min-height are about being a grid *item* of .total-card, not
+     about the flex flow inside. */
+  --round-gap: 0.5vmax;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: var(--round-gap);
   padding: 0.8vmax;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -555,6 +569,9 @@ h3 {
 }
 
 .round-item {
+  flex: 0 0 auto;
+  width: calc((100% - var(--round-gap) * (var(--round-major, 3) - 1)) / var(--round-major, 3));
+  height: calc((100% - var(--round-gap) * (var(--round-minor, 2) - 1)) / var(--round-minor, 2));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -586,22 +603,17 @@ h3 {
     justify-content: flex-start;
   }
 
-  .score-grid {
-    /* Portrait: transpose so the larger axis runs down the screen. */
-    grid-template-columns: repeat(var(--grid-minor, 2), minmax(0, 1fr));
-    grid-template-rows: repeat(var(--grid-major, 4), minmax(0, 1fr));
-  }
-
+  .score-grid > .score-card,
   .scoreboard-grid > .score-card {
-    /* Same transposition, done on the card box since .scoreboard-grid is a
-       centred flex flow rather than a grid. */
+    /* Portrait: transpose so the larger axis runs down the screen. Done on the
+       card box, since these are centred flex flows rather than grids. */
     width: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
     height: calc((100% - var(--ui-gap) * (var(--grid-major, 4) - 1)) / var(--grid-major, 4));
   }
 
-  .round-list {
-    grid-template-columns: repeat(var(--round-minor, 2), minmax(0, 1fr));
-    grid-template-rows: repeat(var(--round-major, 3), minmax(0, 1fr));
+  .round-item {
+    width: calc((100% - var(--round-gap) * (var(--round-minor, 2) - 1)) / var(--round-minor, 2));
+    height: calc((100% - var(--round-gap) * (var(--round-major, 3) - 1)) / var(--round-major, 3));
   }
 
   .score-card:not(.total-card) {
