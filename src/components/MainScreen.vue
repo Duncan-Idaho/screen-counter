@@ -96,7 +96,17 @@ function openProjectionWindow() {
 
   <section v-else-if="game.screen === 'round'" class="panel round-panel">
     <header class="panel-header">
-      <h2>{{ t('round.title', { n: game.roundNumber }) }}</h2>
+      <div class="round-heading">
+        <h2>{{ t('round.title', { n: game.roundNumber }) }}</h2>
+        <input
+          class="theme-input"
+          type="text"
+          :value="game.currentRoundTheme"
+          :placeholder="t('round.themePlaceholder')"
+          :aria-label="t('round.themeLabel')"
+          @input="game.setRoundTheme(game.currentRound, ($event.target as HTMLInputElement).value)"
+        />
+      </div>
       <div class="actions">
         <button type="button" @click="game.endRound">{{ t('round.endRound') }}</button>
         <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>
@@ -115,7 +125,10 @@ function openProjectionWindow() {
        only clicks a card to reveal that team on the projection window. -->
   <section v-else-if="game.screen === 'reveal'" class="panel round-panel">
     <header class="panel-header">
-      <h2>{{ t('reveal.title', { n: game.roundNumber }) }}</h2>
+      <div class="round-heading reveal-heading">
+        <h2>{{ t('reveal.title', { n: game.roundNumber }) }}</h2>
+        <span v-if="game.currentRoundTheme" class="theme-readonly">{{ game.currentRoundTheme }}</span>
+      </div>
       <div class="actions">
         <button type="button" @click="game.nextRound">{{ t('round.nextRound') }}</button>
         <button type="button" @click="game.endGame">{{ t('round.endGame') }}</button>

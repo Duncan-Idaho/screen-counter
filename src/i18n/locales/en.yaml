@@ -24,6 +24,8 @@ round:
   penalty: "− {n}"
   penaltyIncrement: Add a penalty to {name}
   penaltyDecrement: Remove a penalty from {name}
+  themeLabel: Round theme
+  themePlaceholder: Theme
 
 reveal:
   title: "Round {n} results"
@@ -33,6 +35,7 @@ total:
   title: Totals
   backToGame: Back to game
   penaltyLabel: Penalty
+  totalLabel: Total
 
 projection:
   waiting: Waiting for the game to start.

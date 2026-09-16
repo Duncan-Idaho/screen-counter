@@ -4,8 +4,10 @@ import { useGameStore } from '@/stores/game'
 import ScoreboardGrid from './ScoreboardGrid.vue'
 import TotalGrid from './TotalGrid.vue'
 
-// Read-only mirror for a second monitor: no header, no controls, and never any
-// score that has not been settled. Which view to show is driven entirely by
+// Read-only mirror for a second monitor: no controls, and never any score
+// that has not been settled. The total view has no header at all; round and
+// reveal keep a permanent one (round counter + theme) so the grid below never
+// resizes as a theme is typed. Which view to show is driven entirely by
 // `game.projectionScreen`, a field the main window's store keeps in sync (see
 // stores/game.ts) - this window never mutates game state itself.
 //
@@ -29,7 +31,18 @@ const { t } = useI18n({ useScope: 'global' })
     <TotalGrid sorted revealing />
   </section>
 
-  <section v-else class="panel round-panel no-header">
+  <!-- A permanent header (round counter, plus the theme when one is set) so the
+       grid below never resizes as the operator types a theme mid-round - the
+       header row is always there, at a constant height, whether or not it has
+       a theme to show next to the round number. -->
+  <section v-else class="panel round-panel">
+    <header class="panel-header projection-header">
+      <div class="round-heading">
+        <h2>{{ t(game.projectionScreen === 'reveal' ? 'reveal.title' : 'round.title', { n: game.roundNumber }) }}</h2>
+        <span v-if="game.currentRoundTheme" class="theme-readonly">{{ game.currentRoundTheme }}</span>
+      </div>
+    </header>
+
     <ScoreboardGrid :revealing="game.projectionScreen === 'reveal'" />
   </section>
 </template>

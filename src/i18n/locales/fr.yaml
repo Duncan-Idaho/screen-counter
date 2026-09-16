@@ -24,6 +24,8 @@ round:
   penalty: "− {n}"
   penaltyIncrement: Ajouter une pénalité à {name}
   penaltyDecrement: Retirer une pénalité à {name}
+  themeLabel: Thème de la manche
+  themePlaceholder: Thème
 
 reveal:
   title: "Manche {n} - Résultats"
@@ -33,6 +35,7 @@ total:
   title: Totaux
   backToGame: Retour à la partie
   penaltyLabel: Pénalité
+  totalLabel: Total
 
 projection:
   waiting: En attente du début de la partie.

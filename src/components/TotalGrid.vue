@@ -175,6 +175,7 @@ function settledScores(player: Player) {
       :key="player.id"
       :player="player"
       :round-scores="settledScores(player)"
+      :round-themes="game.settledRoundThemes"
       :penalty="penaltyOf(player)"
       :breakdown="breakdown"
       :phase="phaseOf(player)"

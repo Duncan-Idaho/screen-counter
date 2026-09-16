@@ -592,6 +592,95 @@ describe('game store', () => {
     expect(secondSessionStore.players[0]?.scores).toEqual([1, 0])
   })
 
+  // --- Round themes: the store's one per-round, non-player state -------------
+
+  it('pads round themes alongside scores as rounds are created', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    game.startGame()
+    game.setRoundTheme(0, 'Ballads')
+    game.endRound()
+    game.nextRound()
+
+    expect(game.roundThemes).toEqual(['Ballads', ''])
+  })
+
+  it('sets a theme for the current round without disturbing other rounds', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    game.startGame()
+    game.setRoundTheme(0, 'Ballads')
+    game.endRound()
+    game.nextRound()
+    game.setRoundTheme(1, 'Rock')
+
+    expect(game.roundThemes).toEqual(['Ballads', 'Rock'])
+    expect(game.currentRoundTheme).toBe('Rock')
+  })
+
+  it('only exposes settled round themes to the total screen', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    game.startGame()
+    game.setRoundTheme(0, 'Ballads')
+    game.endRound()
+    game.nextRound()
+    // The round now in progress has a theme too, but it must not leak to the
+    // audience-facing total screen before it is settled.
+    game.setRoundTheme(1, 'Rock')
+
+    expect(game.settledRoundThemes).toEqual(['Ballads'])
+  })
+
+  it('resets round themes when starting a new game', () => {
+    const game = useGameStore()
+
+    game.addPlayer('Duncan')
+    game.startGame()
+    game.setRoundTheme(0, 'Ballads')
+    game.endRound()
+    game.startGame()
+
+    expect(game.roundThemes).toEqual([''])
+    expect(game.currentRoundTheme).toBe('')
+  })
+
+  it('clears round themes when there are no players', () => {
+    localStorage.setItem('screen-counter:round-themes', JSON.stringify(['Ballads']))
+
+    const game = useGameStore()
+
+    expect(game.roundThemes).toEqual([])
+  })
+
+  it('repairs a corrupt persisted round themes value', () => {
+    localStorage.setItem(
+      'screen-counter:players',
+      JSON.stringify([{ id: 1, name: 'Alia', scores: [3, 0] }]),
+    )
+    localStorage.setItem('screen-counter:current-round', '1')
+    localStorage.setItem('screen-counter:round-themes', JSON.stringify('bogus'))
+
+    const game = useGameStore()
+
+    expect(game.roundThemes).toEqual(['', ''])
+  })
+
+  it('coerces non-string entries in a persisted round themes array', () => {
+    localStorage.setItem(
+      'screen-counter:players',
+      JSON.stringify([{ id: 1, name: 'Alia', scores: [3] }]),
+    )
+    localStorage.setItem('screen-counter:round-themes', JSON.stringify([42, null, 'Rock']))
+
+    const game = useGameStore()
+
+    expect(game.roundThemes).toEqual(['42', '', 'Rock'])
+  })
+
   // --- Penalties: a whole-game counter, applied only at the end ---------------
 
   it('adds and removes penalties within the same bounds as scores', () => {

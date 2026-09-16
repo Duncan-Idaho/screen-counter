@@ -40,6 +40,9 @@ export const useGameStore = defineStore('game', () => {
   // Ids already revealed on the reveal screen, in click order. The projection
   // window renders exactly these, sorted by settled score.
   const revealedIds = useLocalStorage<number[]>('screen-counter:revealed', [])
+  // One entry per round, index-aligned with every player's `scores` array (see
+  // `ensureRound`). The store's only per-round state that isn't per-player.
+  const roundThemes = useLocalStorage<string[]>('screen-counter:round-themes', [])
   const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
   const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
   const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
@@ -60,6 +63,10 @@ export const useGameStore = defineStore('game', () => {
 
   const hasPlayers = computed(() => players.value.length > 0)
   const roundNumber = computed(() => currentRound.value + 1)
+  const currentRoundTheme = computed(() => roundThemes.value[currentRound.value] ?? '')
+  // Public rounds only, same slicing as `getSettledScore`: what the total
+  // screen's per-round breakdown is allowed to show.
+  const settledRoundThemes = computed(() => roundThemes.value.slice(0, settledRounds.value))
 
   const gridMajor = computed(() => splitGrid(players.value.length).major)
   const gridMinor = computed(() => splitGrid(players.value.length).minor)
@@ -93,6 +100,10 @@ export const useGameStore = defineStore('game', () => {
       .filter((player) => player.name.length > 0)
   }
 
+  function normalizeRoundThemes(rawRoundThemes: unknown) {
+    return Array.isArray(rawRoundThemes) ? rawRoundThemes.map((value) => String(value ?? '')) : []
+  }
+
   function normalizeRevealedIds(rawRevealedIds: unknown, playerIds: Set<number>) {
     const source = Array.isArray(rawRevealedIds) ? rawRevealedIds : []
     const result: number[] = []
@@ -110,6 +121,7 @@ export const useGameStore = defineStore('game', () => {
 
   function sanitizeState() {
     players.value = normalizePlayers(players.value)
+    roundThemes.value = normalizeRoundThemes(roundThemes.value)
     currentRound.value = Math.max(0, Math.floor(Number(currentRound.value) || 0))
     // A settled count is only ever `currentRound` (round in progress, nothing
     // public yet) or one past it (round closed, being revealed).
@@ -158,6 +170,7 @@ export const useGameStore = defineStore('game', () => {
       currentRound.value = 0
       settledRounds.value = 0
       revealedIds.value = []
+      roundThemes.value = []
       // Settings needs no players, so it survives an empty roster; the game
       // screens do not and fall back to setup.
       if (screen.value !== 'settings') {
@@ -222,6 +235,7 @@ export const useGameStore = defineStore('game', () => {
     currentRound.value = 0
     settledRounds.value = 0
     revealedIds.value = []
+    roundThemes.value = ['']
   }
 
   function startGame() {
@@ -260,6 +274,14 @@ export const useGameStore = defineStore('game', () => {
         scores,
       }
     })
+
+    const themes = [...roundThemes.value]
+
+    while (themes.length <= roundIndex) {
+      themes.push('')
+    }
+
+    roundThemes.value = themes
   }
 
   // Opens a round nobody has seen yet: moves on to the next one when the
@@ -288,6 +310,14 @@ export const useGameStore = defineStore('game', () => {
 
       return { ...player, scores }
     })
+  }
+
+  function setRoundTheme(roundIndex: number, theme: string) {
+    ensureRound(roundIndex)
+
+    const themes = [...roundThemes.value]
+    themes[roundIndex] = theme
+    roundThemes.value = themes
   }
 
   function incrementScore(playerId: number) {
@@ -471,6 +501,9 @@ export const useGameStore = defineStore('game', () => {
     roundNumber,
     settledRounds,
     revealedIds,
+    roundThemes,
+    currentRoundTheme,
+    settledRoundThemes,
     gridMajor,
     gridMinor,
     screen,
@@ -483,6 +516,7 @@ export const useGameStore = defineStore('game', () => {
     resumeGame,
     incrementScore,
     decrementScore,
+    setRoundTheme,
     incrementPenalty,
     decrementPenalty,
     endRound,

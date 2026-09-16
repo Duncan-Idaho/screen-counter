@@ -17,6 +17,7 @@ import ScoreRoll from './ScoreRoll.vue'
 const props = defineProps<{
   player: Player
   roundScores: number[]
+  roundThemes: string[]
   penalty: number
   breakdown: { major: number; minor: number }
   phase: FinalPhase
@@ -67,6 +68,7 @@ onUnmounted(() => clearTimeout(burstTimer))
     <h3>{{ player.name }}</h3>
 
     <p class="grand-total">
+      <span class="total-label">{{ t('total.totalLabel') }}</span>
       <!-- Mounted in every mode, including the ones that never roll. Swapping it
            for a plain number once settled would race the roll's own transition,
            which ends on that same tick; and re-keying it on the two ends means
@@ -88,8 +90,10 @@ onUnmounted(() => clearTimeout(burstTimer))
         v-for="(score, index) in roundScores"
         :key="`${player.id}-${index}`"
         class="round-item"
+        :class="{ 'round-item--themed': !!roundThemes[index] }"
       >
-        <span>{{ score }}</span>
+        <span v-if="roundThemes[index]" class="round-item-theme">{{ roundThemes[index] }}</span>
+        <span class="round-item-score">{{ score }}</span>
       </li>
       <!-- Laid out from the first frame and merely hidden, never v-if'd:
            .round-list is a centred wrap, so a chip appearing at the one-second
@@ -105,7 +109,7 @@ onUnmounted(() => clearTimeout(burstTimer))
         }"
         :title="t('total.penaltyLabel')"
       >
-        <span>{{ t('round.penalty', { n: penalty }) }}</span>
+        <span class="round-item-score">{{ t('round.penalty', { n: penalty }) }}</span>
       </li>
     </ol>
 
