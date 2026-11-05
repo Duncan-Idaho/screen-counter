@@ -410,4 +410,19 @@ describe('TotalGrid', () => {
       expect(wrapper.find('.confetti-burst').exists()).toBe(false)
     })
   })
+
+  it('draws the round and penalty chips in the digits font, but not themes or labels', () => {
+    const game = playRounds(['Alia'], [[1, 2, 3, 4]])
+    useSettingsStore().setPenaltiesEnabled(true)
+    game.incrementPenalty(game.players[0]!.id)
+    game.setRoundTheme(0, 'Eighties')
+
+    const wrapper = mountGrid()
+
+    const scores = wrapper.findAll('.round-item-score')
+    expect(scores.length).toBe(ROUNDS + 1)
+    expect(scores.every((node) => node.classes().includes('digits'))).toBe(true)
+    expect(wrapper.get('.round-item-theme').classes()).not.toContain('digits')
+    expect(wrapper.get('.total-label').classes()).not.toContain('digits')
+  })
 })

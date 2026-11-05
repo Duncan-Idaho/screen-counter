@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore, type Player } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
+import LabeledNumber from './LabeledNumber.vue'
 
 // The control window's card, in both of its phases: `tally` while the round is
 // being scored (+/- controls, private points), `reveal` once it is closed (no
@@ -42,14 +43,14 @@ const penalty = computed(() => game.getPenalty(props.player))
       :aria-label="t('round.increment', { name: player.name })"
       @click="game.incrementScore(player.id)"
     >
-      <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
+      <span class="round-score digits">{{ game.getCurrentRoundScore(player) }}</span>
       <!-- Sized off the setting, not off this team's penalty: keying it to
            `penalty > 0` made penalised cards carry a visibly smaller total than
            clean ones, leaving the grid ragged. Same reason TotalGrid splits its
            breakdown per grid rather than per player. -->
       <span class="total-line" :class="{ 'total-line--penalty': penaltiesOn }">
-        <span class="total-score">{{ t('round.total', { n: game.getTotalScore(player) }) }}</span>
-        <span v-if="penaltiesOn && penalty > 0" class="penalty-score">
+        <LabeledNumber keypath="round.total" :n="game.getTotalScore(player)" class="total-score" />
+        <span v-if="penaltiesOn && penalty > 0" class="penalty-score digits">
           {{ t('round.penalty', { n: penalty }) }}
         </span>
       </span>
@@ -63,8 +64,8 @@ const penalty = computed(() => game.getPenalty(props.player))
       :aria-label="t('reveal.reveal', { name: player.name })"
       @click="game.revealPlayer(player.id)"
     >
-      <span class="round-score">{{ game.getRevealScore(player) }}</span>
-      <span class="total-score">{{ t('round.total', { n: game.getSettledScore(player) }) }}</span>
+      <span class="round-score digits">{{ game.getRevealScore(player) }}</span>
+      <LabeledNumber keypath="round.total" :n="game.getSettledScore(player)" class="total-score" />
     </button>
 
     <!-- Two pairs of identical glyphs, so colour and the heavier rule between

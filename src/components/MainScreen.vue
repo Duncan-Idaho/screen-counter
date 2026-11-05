@@ -2,9 +2,16 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/game'
-import { THEME_FIELDS, themeFieldLabelKey, useSettingsStore } from '@/stores/settings'
+import {
+  MAX_BANNER_HEIGHT,
+  MIN_BANNER_HEIGHT,
+  THEME_FIELDS,
+  themeFieldLabelKey,
+  useSettingsStore,
+} from '@/stores/settings'
 import ColorPicker from './ColorPicker.vue'
 import FontPicker from './FontPicker.vue'
+import LabeledNumber from './LabeledNumber.vue'
 import ScoreGrid from './ScoreGrid.vue'
 import TotalGrid from './TotalGrid.vue'
 import type { Locale } from '@/i18n/locale'
@@ -98,7 +105,7 @@ function openProjectionWindow() {
   <section v-else-if="game.screen === 'round'" class="panel round-panel">
     <header class="panel-header">
       <div class="round-heading">
-        <h2>{{ t('round.title', { n: game.roundNumber }) }}</h2>
+        <LabeledNumber keypath="round.title" :n="game.roundNumber" tag="h2" />
         <input
           class="theme-input"
           type="text"
@@ -127,7 +134,7 @@ function openProjectionWindow() {
   <section v-else-if="game.screen === 'reveal'" class="panel round-panel">
     <header class="panel-header">
       <div class="round-heading reveal-heading">
-        <h2>{{ t('reveal.title', { n: game.roundNumber }) }}</h2>
+        <LabeledNumber keypath="reveal.title" :n="game.roundNumber" tag="h2" />
         <span v-if="game.currentRoundTheme" class="theme-readonly">{{ game.currentRoundTheme }}</span>
       </div>
       <div class="actions">
@@ -244,6 +251,50 @@ function openProjectionWindow() {
     <div class="setup-actions">
       <button type="button" class="danger" @click="settings.resetFont()">
         {{ t('settings.font.reset') }}
+      </button>
+    </div>
+
+    <div class="font-form">
+      <FontPicker
+        variant="digits"
+        :model-value="settings.digitFont"
+        @update:model-value="settings.setDigitFont($event)"
+      />
+    </div>
+
+    <div class="setup-actions">
+      <button type="button" class="danger" @click="settings.resetDigitFont()">
+        {{ t('settings.font.resetDigit') }}
+      </button>
+    </div>
+
+    <hr class="setup-divider" />
+
+    <h3>{{ t('settings.projection.title') }}</h3>
+
+    <div class="range-form">
+      <label class="range-row">
+        <span>{{ t('settings.projection.bannerHeight') }}</span>
+        <!-- @input, not @change: that is what makes the projection follow live. -->
+        <input
+          type="range"
+          class="range-input"
+          :min="MIN_BANNER_HEIGHT"
+          :max="MAX_BANNER_HEIGHT"
+          step="1"
+          :value="settings.bannerHeight"
+          @input="settings.setBannerHeight(Number(($event.target as HTMLInputElement).value))"
+        />
+        <span class="range-value">
+          {{ t('settings.projection.bannerHeightValue', { n: settings.bannerHeight }) }}
+        </span>
+      </label>
+      <p class="toggle-hint">{{ t('settings.projection.bannerHeightHint') }}</p>
+    </div>
+
+    <div class="setup-actions">
+      <button type="button" class="danger" @click="settings.resetBannerHeight()">
+        {{ t('settings.projection.resetBannerHeight') }}
       </button>
     </div>
 

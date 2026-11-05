@@ -78,4 +78,26 @@ describe('ScoreCard', () => {
     expect(wrapper.find('.score-controls').exists()).toBe(false)
     expect(wrapper.find('.penalty-score').exists()).toBe(false)
   })
+
+  it('draws every number of a tally card in the digits font, and nothing else', () => {
+    const game = setUpGame()
+    useSettingsStore().setPenaltiesEnabled(true)
+    game.incrementPenalty(game.players[0]!.id)
+    const wrapper = mountCard(game)
+
+    expect(wrapper.get('.round-score').classes()).toContain('digits')
+    expect(wrapper.get('.penalty-score').classes()).toContain('digits')
+    expect(wrapper.get('.total-score .digits').text()).toBe('0')
+    expect(wrapper.get('h3').classes()).not.toContain('digits')
+    expect(wrapper.get('.plus').classes()).not.toContain('digits')
+    expect(wrapper.get('.minus').classes()).not.toContain('digits')
+  })
+
+  it('draws the numbers of a reveal card in the digits font', () => {
+    const wrapper = mountCard(setUpGame(), 'reveal')
+
+    expect(wrapper.get('.round-score').classes()).toContain('digits')
+    expect(wrapper.find('.total-score .digits').exists()).toBe(true)
+    expect(wrapper.find('.penalty-score').exists()).toBe(false)
+  })
 })

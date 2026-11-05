@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { normalizeFontFamily } from '@/lib/font'
 import { canQueryLocalFonts, LocalFontsError, queryInstalledFontFamilies } from '@/lib/localFonts'
 
-const props = defineProps<{ modelValue: string }>()
+const props = withDefaults(defineProps<{ modelValue: string; variant?: 'text' | 'digits' }>(), {
+  variant: 'text',
+})
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 // Unlike ColorPicker this one resolves its own strings: it needs a label, a
@@ -50,7 +52,12 @@ function sampleFont(family: string) {
 
 // Driven by the draft rather than the committed value: typing shows what a font
 // looks like before the whole app takes it.
-const previewFont = computed(() => sampleFont(draft.value))
+// In `digits` an empty draft previews what is really shown: the text font.
+const previewFont = computed(() =>
+  props.variant === 'digits' && !draft.value.trim()
+    ? 'var(--app-digit-font), sans-serif'
+    : sampleFont(draft.value),
+)
 
 // The input doubles as the list filter - a machine can have hundreds of faces.
 const visibleFamilies = computed(() => {
@@ -102,14 +109,14 @@ async function browse() {
 <template>
   <div class="font-picker">
     <label class="font-picker-field">
-      <span>{{ t('settings.font.label') }}</span>
+      <span>{{ t(variant === 'digits' ? 'settings.font.digitLabel' : 'settings.font.textLabel') }}</span>
       <input
         :value="draft"
         type="text"
         spellcheck="false"
         autocapitalize="off"
         autocomplete="off"
-        :placeholder="t('settings.font.placeholder')"
+        :placeholder="t(variant === 'digits' ? 'settings.font.digitPlaceholder' : 'settings.font.placeholder')"
         @input="onInput"
         @change="commit(draft)"
       />
@@ -135,8 +142,13 @@ async function browse() {
     <p v-else-if="browsed" class="font-picker-note">{{ t('settings.font.noMatches') }}</p>
 
     <p class="font-picker-preview" :style="{ fontFamily: previewFont }">
-      <span class="font-picker-preview-name">{{ t('settings.font.previewName') }}</span>
-      <span class="font-picker-preview-score">42</span>
+      <!-- Each variant previews what it controls: the text font shows a name (and
+           a number in the digits font it will really get), the digits font only
+           a number, inheriting the draft. -->
+      <span v-if="variant === 'text'" class="font-picker-preview-name">{{
+        t('settings.font.previewName')
+      }}</span>
+      <span class="font-picker-preview-score" :class="{ digits: variant === 'text' }">42</span>
     </p>
   </div>
 </template>

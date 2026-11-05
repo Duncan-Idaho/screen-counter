@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useGameStore, type Player } from '@/stores/game'
 import { REVEAL_HIGHLIGHT_HOLD_MS } from '@/lib/projectionOrder'
+import LabeledNumber from './LabeledNumber.vue'
 
 // The projection window's card. It animates on mount rather than on a score
 // change: a card is only ever revealed once, already carrying its result. The
@@ -15,7 +15,6 @@ import { REVEAL_HIGHLIGHT_HOLD_MS } from '@/lib/projectionOrder'
 const props = defineProps<{ player: Player; animate: boolean }>()
 
 const game = useGameStore()
-const { t } = useI18n({ useScope: 'global' })
 
 const gain = computed(() => game.getRevealScore(props.player))
 const highlight = ref<'positive' | 'negative' | null>(null)
@@ -49,8 +48,8 @@ onUnmounted(() => clearTimeout(fadeTimer))
     <h3>{{ player.name }}</h3>
 
     <div class="score-content">
-      <span class="round-score">{{ gain }}</span>
-      <span class="total-score">{{ t('round.total', { n: game.getSettledScore(player) }) }}</span>
+      <span class="round-score digits">{{ gain }}</span>
+      <LabeledNumber keypath="round.total" :n="game.getSettledScore(player)" class="total-score" />
     </div>
 
     <div v-if="highlight === 'positive'" class="confetti-burst" aria-hidden="true">
