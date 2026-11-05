@@ -57,15 +57,24 @@ settings:
     errorDetail: "Could not use that image: {message}"
   font:
     title: Font
-    label: Font family
+    textLabel: Text font
+    digitLabel: Number font
     placeholder: e.g. Segoe UI
+    digitPlaceholder: Same as the text font
     browse: Browse installed fonts
     noMatches: No installed font matches that name.
-    reset: Reset font
+    reset: Reset text font
+    resetDigit: Reset number font
     previewName: Alice
     unsupportedHint: Listing installed fonts requires Chrome or Edge. You can still type a font name.
     errorDenied: Permission to list your installed fonts was denied.
     error: Could not list the installed fonts.
+  projection:
+    title: Projection
+    bannerHeight: Round title height
+    bannerHeightValue: "{n}%"
+    bannerHeightHint: Share of the screen height taken by the round title on the projection window.
+    resetBannerHeight: Reset round title height
   theme:
     title: Theme
     reset: Reset theme

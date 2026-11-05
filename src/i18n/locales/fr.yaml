@@ -57,15 +57,24 @@ settings:
     errorDetail: "Impossible d'utiliser cette image : {message}"
   font:
     title: Police
-    label: Famille de police
+    textLabel: Police du texte
+    digitLabel: Police des chiffres
     placeholder: ex. Segoe UI
+    digitPlaceholder: Identique à la police du texte
     browse: Parcourir les polices installées
     noMatches: Aucune police installée ne correspond à ce nom.
-    reset: Réinitialiser la police
+    reset: Réinitialiser la police du texte
+    resetDigit: Réinitialiser la police des chiffres
     previewName: Alice
     unsupportedHint: La liste des polices installées nécessite Chrome ou Edge. Vous pouvez tout de même saisir un nom de police.
     errorDenied: L'autorisation de lister vos polices installées a été refusée.
     error: Impossible de lister les polices installées.
+  projection:
+    title: Projection
+    bannerHeight: Hauteur du titre de manche
+    bannerHeightValue: "{n} %"
+    bannerHeightHint: Part de la hauteur de l'écran occupée par le titre de manche sur la fenêtre de projection.
+    resetBannerHeight: Réinitialiser la hauteur du titre
   theme:
     title: Thème
     reset: Réinitialiser le thème

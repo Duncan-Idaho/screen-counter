@@ -93,7 +93,7 @@ onUnmounted(() => clearTimeout(burstTimer))
         :class="{ 'round-item--themed': !!roundThemes[index] }"
       >
         <span v-if="roundThemes[index]" class="round-item-theme">{{ roundThemes[index] }}</span>
-        <span class="round-item-score">{{ score }}</span>
+        <span class="round-item-score digits">{{ score }}</span>
       </li>
       <!-- Laid out from the first frame and merely hidden, never v-if'd:
            .round-list is a centred wrap, so a chip appearing at the one-second
@@ -109,7 +109,7 @@ onUnmounted(() => clearTimeout(burstTimer))
         }"
         :title="t('total.penaltyLabel')"
       >
-        <span class="round-item-score">{{ t('round.penalty', { n: penalty }) }}</span>
+        <span class="round-item-score digits">{{ t('round.penalty', { n: penalty }) }}</span>
       </li>
     </ol>
 

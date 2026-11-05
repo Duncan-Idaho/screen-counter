@@ -138,6 +138,53 @@ describe('FontPicker', () => {
     expect(wrapper.get('.font-picker-error').text()).toContain('denied')
     expect(wrapper.find('.font-picker-list').exists()).toBe(false)
   })
+
+  describe('digits variant', () => {
+    function mountDigits(modelValue = '') {
+      return mount(FontPicker, {
+        props: { modelValue, variant: 'digits' },
+        global: { plugins: [i18n] },
+      })
+    }
+
+    it('has its own label and placeholder', () => {
+      const wrapper = mountDigits()
+      const text = mountPicker()
+
+      expect(text.get('.font-picker-field span').text()).toBe('Text font')
+      expect(wrapper.get('.font-picker-field span').text()).toBe('Number font')
+      expect(wrapper.get('input[type="text"]').attributes('placeholder')).toBe(
+        'Same as the text font',
+      )
+    })
+
+    it('previews a number only, following the text font while the draft is empty', async () => {
+      const wrapper = mountDigits()
+      const preview = wrapper.get('.font-picker-preview')
+
+      expect(wrapper.find('.font-picker-preview-name').exists()).toBe(false)
+      expect(wrapper.get('.font-picker-preview-score').classes()).not.toContain('digits')
+      expect(preview.attributes('style')).toContain('--app-digit-font')
+
+      await type(wrapper, 'Impact')
+
+      expect(preview.attributes('style')).toContain('Impact')
+    })
+
+    it('commits the normalized value, and ignores an emptied field', async () => {
+      const wrapper = mountDigits()
+      const input = await type(wrapper, 'Segoe UI')
+      await input.trigger('change')
+
+      expect(lastEmitted(wrapper)).toBe('"Segoe UI"')
+
+      const empty = mountDigits('Impact')
+      const field = await type(empty, '')
+      await field.trigger('change')
+
+      expect(empty.emitted('update:modelValue')).toBeUndefined()
+    })
+  })
 })
 
 // The click handler awaits the API before it renders, so one tick is not enough.

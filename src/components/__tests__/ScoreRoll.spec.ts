@@ -43,4 +43,8 @@ describe('ScoreRoll', () => {
       mountRoll({ from: 13, to: 10, rolled: true }).find('.score-roll').attributes('aria-label'),
     ).toBe('10')
   })
+
+  it('draws its numbers in the digits font', () => {
+    expect(mountRoll({ from: 3, to: 3 }).get('.score-roll').classes()).toContain('digits')
+  })
 })

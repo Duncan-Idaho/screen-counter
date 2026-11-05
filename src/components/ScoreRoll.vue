@@ -29,7 +29,7 @@ const index = computed(() => (props.rolled ? values.value.length - 1 : 0))
 </script>
 
 <template>
-  <span class="score-roll" role="img" :aria-label="String(rolled ? to : from)">
+  <span class="score-roll digits" role="img" :aria-label="String(rolled ? to : from)">
     <!-- The track carries every intermediate number, which a screen reader would
          otherwise recite one by one; the role and label on the element above
          reduce it to the number a sighted viewer can actually read right now.
