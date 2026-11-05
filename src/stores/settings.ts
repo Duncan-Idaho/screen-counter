@@ -38,6 +38,26 @@ export type Theme = Record<ThemeKey, string>
 export const DEFAULT_FONT =
   'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue"'
 
+// Empty means "not chosen": the numbers then follow the text font. The CSS
+// fallback lives in `cssVars` (normalizeFontFamily rejects `var(...)`, so it
+// cannot be stored).
+export const DEFAULT_DIGIT_FONT = ''
+
+// Share of the screen height taken by the projection's round-title banner.
+export const DEFAULT_BANNER_HEIGHT = 33
+export const MIN_BANNER_HEIGHT = 10
+export const MAX_BANNER_HEIGHT = 50
+
+export function clampBannerHeight(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number.NaN
+
+  if (!Number.isFinite(n)) {
+    return DEFAULT_BANNER_HEIGHT
+  }
+
+  return Math.min(MAX_BANNER_HEIGHT, Math.max(MIN_BANNER_HEIGHT, Math.round(n)))
+}
+
 // Order drives the settings screen; each field's label is the i18n key
 // `themeFieldLabelKey(key)` resolves (see `settings.theme.fields.*` in the catalogs).
 export const THEME_FIELDS: ThemeKey[] = [
@@ -83,6 +103,10 @@ export const useSettingsStore = defineStore('settings', () => {
   // not a color, so it would only fight `parseColor` and the one-ColorPicker-per
   // -THEME_FIELDS loop. Modeled on `locale` instead.
   const font = useLocalStorage<string>(storageKey('font'), DEFAULT_FONT)
+  // Same scalar pattern as `font`, for every number of the game. Empty = follow
+  // the text font.
+  const digitFont = useLocalStorage<string>(storageKey('digit-font'), DEFAULT_DIGIT_FONT)
+  const bannerHeight = useLocalStorage<number>(storageKey('banner-height'), DEFAULT_BANNER_HEIGHT)
   // Default only applies on first visit (key absent), so the browser language
   // wins until the user picks one from the settings screen.
   const locale = useLocalStorage<Locale>(storageKey('locale'), detectBrowserLocale())
@@ -107,6 +131,8 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     font.value = normalizeFontFamily(font.value) ?? DEFAULT_FONT
+    digitFont.value = normalizeFontFamily(digitFont.value) ?? DEFAULT_DIGIT_FONT
+    bannerHeight.value = clampBannerHeight(bannerHeight.value)
 
     // Defensively redundant - VueUse's boolean serializer is total, so anything
     // that is not 'true' already reads as false - but sanitizeSettings stays the
@@ -137,6 +163,11 @@ export const useSettingsStore = defineStore('settings', () => {
     }, {})
 
     vars['--app-font'] = font.value
+    // Always emitted inline on `.app`, so `var(--app-font)` resolves there and
+    // sees the operator's choice. Declaring the fallback in `:root` would freeze
+    // it at the default font instead.
+    vars['--app-digit-font'] = digitFont.value || 'var(--app-font)'
+    vars['--projection-banner-height'] = `${bannerHeight.value}dvh`
 
     return vars
   })
@@ -170,6 +201,32 @@ export const useSettingsStore = defineStore('settings', () => {
     font.value = DEFAULT_FONT
   }
 
+  function setDigitFont(value: string) {
+    const normalized = normalizeFontFamily(value)
+
+    if (!normalized) {
+      return
+    }
+
+    digitFont.value = normalized
+  }
+
+  function resetDigitFont() {
+    digitFont.value = DEFAULT_DIGIT_FONT
+  }
+
+  function setBannerHeight(value: number) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return
+    }
+
+    bannerHeight.value = clampBannerHeight(value)
+  }
+
+  function resetBannerHeight() {
+    bannerHeight.value = DEFAULT_BANNER_HEIGHT
+  }
+
   function setPenaltiesEnabled(value: boolean) {
     penaltiesEnabled.value = value === true
   }
@@ -199,6 +256,8 @@ export const useSettingsStore = defineStore('settings', () => {
     backgroundImage,
     theme,
     font,
+    digitFont,
+    bannerHeight,
     locale,
     penaltiesEnabled,
     cssVars,
@@ -206,6 +265,10 @@ export const useSettingsStore = defineStore('settings', () => {
     resetTheme,
     setFont,
     resetFont,
+    setDigitFont,
+    resetDigitFont,
+    setBannerHeight,
+    resetBannerHeight,
     setPenaltiesEnabled,
     setLocale,
     setBackgroundImage,
