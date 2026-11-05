@@ -4,6 +4,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { fileToBackgroundDataUrl, isValidBackgroundValue } from '@/lib/backgroundImage'
 import { parseColor } from '@/lib/color'
 import { normalizeFontFamily } from '@/lib/font'
+import { storageKey } from '@/lib/storageKey'
 import { detectBrowserLocale, isSupportedLocale, type Locale } from '@/i18n/locale'
 
 // Appearance, language, and the one gameplay switch (`penaltiesEnabled`): no
@@ -76,15 +77,15 @@ const THEME_CSS_VARS: Record<ThemeKey, string> = {
 const THEME_KEYS = Object.keys(DEFAULT_THEME) as ThemeKey[]
 
 export const useSettingsStore = defineStore('settings', () => {
-  const backgroundImage = useLocalStorage<string>('screen-counter:bg-image', '')
-  const theme = useLocalStorage<Theme>('screen-counter:theme', { ...DEFAULT_THEME })
+  const backgroundImage = useLocalStorage<string>(storageKey('bg-image'), '')
+  const theme = useLocalStorage<Theme>(storageKey('theme'), { ...DEFAULT_THEME })
   // A scalar setting alongside the theme rather than a key inside it: a font is
   // not a color, so it would only fight `parseColor` and the one-ColorPicker-per
   // -THEME_FIELDS loop. Modeled on `locale` instead.
-  const font = useLocalStorage<string>('screen-counter:font', DEFAULT_FONT)
+  const font = useLocalStorage<string>(storageKey('font'), DEFAULT_FONT)
   // Default only applies on first visit (key absent), so the browser language
   // wins until the user picks one from the settings screen.
-  const locale = useLocalStorage<Locale>('screen-counter:locale', detectBrowserLocale())
+  const locale = useLocalStorage<Locale>(storageKey('locale'), detectBrowserLocale())
   // The one gameplay switch in this store, and an opt-*out*: penalties are on
   // out of the box, so an operator who wants them never has to find the setting
   // first. It lives here rather than in game.ts for the same reason `locale`
@@ -92,7 +93,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // game.ts is the state machine, not the preference store. Deliberately not a
   // THEME_FIELDS key - it is a boolean, not a color - so it follows the scalar
   // pattern `locale`/`font` set instead.
-  const penaltiesEnabled = useLocalStorage('screen-counter:penalties-enabled', true)
+  const penaltiesEnabled = useLocalStorage(storageKey('penalties-enabled'), true)
 
   // Repair whatever came back from localStorage. Keep this defensive: persisted
   // data from older versions can be any shape.

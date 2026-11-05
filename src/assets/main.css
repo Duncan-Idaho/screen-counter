@@ -53,6 +53,23 @@ body {
   height: 100dvh;
 }
 
+/* Beta channel marker (App.vue, beta builds only). Tiny, translucent, in a
+   corner and click-through, so it never competes with the cards. */
+.beta-badge {
+  position: fixed;
+  top: 0.5vmax;
+  left: 0.5vmax;
+  z-index: 50;
+  padding: 0.1vmax 0.6vmax;
+  border-radius: 0.4vmax;
+  font-size: clamp(9px, 0.9vmax, 14px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: rgba(200, 40, 40, 0.55);
+  pointer-events: none;
+}
+
 .app {
   height: 100dvh;
   background-image: linear-gradient(var(--overlay), var(--overlay)), var(--bg-image);

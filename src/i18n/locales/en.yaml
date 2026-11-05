@@ -1,4 +1,6 @@
 common:
+  beta: BETA
+  betaTitle: beta
   settings: Display settings
   setup: Team setup
   openProjection: Project

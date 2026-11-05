@@ -76,7 +76,21 @@ The rest is the theming feature:
 
 ## Deployment
 
-`.github/workflows/deploy-pages.yml` builds and deploys to GitHub Pages on every push to `main`. `vite.config.ts` derives `base` from `GITHUB_REPOSITORY` when running in Actions (so it serves correctly from `/<repo>/`), and `/` otherwise.
+`.github/workflows/deploy-pages.yml` builds and deploys to GitHub Pages on every push to `main` **or** `beta` (and `workflow_dispatch`). GitHub Pages allows one deployment per repository, so each run checks out both branches, builds `main` into the site root and `beta` (with `APP_CHANNEL=beta`) into `beta/`, and uploads a single artifact. If no `beta` branch exists, only the stable version is deployed. `vite.config.ts` derives `base` from `GITHUB_REPOSITORY` when running in Actions (so it serves correctly from `/<repo>/`), and `/` otherwise; the beta channel appends `beta/` (`/<repo>/beta/` or `/beta/`).
+
+## Parallel versions (stable / beta)
+
+| | Branch | URL |
+|---|---|---|
+| Stable | `main` | `https://duncan-idaho.github.io/screen-counter/` |
+| Beta | `beta` | `https://duncan-idaho.github.io/screen-counter/beta/` |
+
+Feature branches are merged by PR into `beta`. `main` only receives urgent stable fixes and the beta once the client has validated it.
+
+- **`APP_CHANNEL`** (`stable` default, or `beta`) is read by `vite.config.ts`; it sets `base` and defines `import.meta.env.VITE_APP_CHANNEL`. `vite build --mode beta` is equivalent, which is what `npm run build:beta` uses (type-check + beta build, output in `dist/`; `npm run dev -- --mode beta` runs the dev server as beta).
+- **Storage prefix.** `localStorage` is shared per origin, not per path, so stable and beta would otherwise share keys. `src/lib/storageKey.ts` exposes `storageKey(name)`: `screen-counter:<name>` in stable (**unchanged**, existing customer data is preserved), `screen-counter-beta:<name>` in beta. **Every new localStorage key must go through `storageKey()`** — never write a `'screen-counter:...'` literal. The projection window name (`PROJECTION_WINDOW_NAME`) is per channel too, so a beta projection never reuses the stable one. Beta data is not migrated to stable.
+- **Beta aids.** `App.vue` (present in every window) shows a small translucent `BÊTA`/`BETA` badge (`.beta-badge`, click-through) and suffixes the tab title (`Screen Counter (beta)`) only when `IS_BETA`.
+- **Promotion process.** (1) The client validates the beta at `/beta/`. (2) PR `beta` → `main`. (3) The next deployment publishes it at the root. (4) Resynchronise `beta` on `main` (e.g. `git checkout beta && git merge main`, or reset it to `main`) for the next cycle.
 
 ## Conventions
 

@@ -2,6 +2,7 @@ import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { splitGrid } from '@/lib/grid'
+import { storageKey } from '@/lib/storageKey'
 
 export type ScreenName = 'setup' | 'round' | 'reveal' | 'total' | 'settings'
 
@@ -27,26 +28,26 @@ const MIN_PENALTY = 0
 const MAX_PENALTY = 99
 
 export const useGameStore = defineStore('game', () => {
-  const players = useLocalStorage<Player[]>('screen-counter:players', [])
+  const players = useLocalStorage<Player[]>(storageKey('players'), [])
   // The round the operator is scoring right now. Its points are edited straight
   // into `scores[currentRound]` and stay private until `endRound` settles them.
-  const currentRound = useLocalStorage('screen-counter:current-round', 0)
+  const currentRound = useLocalStorage(storageKey('current-round'), 0)
   // How many rounds have been made public. Equals `currentRound` while a round
   // is being scored - the tally in progress must never leak to the audience -
   // and `currentRound + 1` once `endRound`/`endGame` has settled it. Kept
   // orthogonal to `currentRound` on purpose: settling a round must not invent a
   // new, unplayed one.
-  const settledRounds = useLocalStorage('screen-counter:settled-rounds', 0)
+  const settledRounds = useLocalStorage(storageKey('settled-rounds'), 0)
   // Ids already revealed on the reveal screen, in click order. The projection
   // window renders exactly these, sorted by settled score.
-  const revealedIds = useLocalStorage<number[]>('screen-counter:revealed', [])
+  const revealedIds = useLocalStorage<number[]>(storageKey('revealed'), [])
   // One entry per round, index-aligned with every player's `scores` array (see
   // `ensureRound`). The store's only per-round state that isn't per-player.
-  const roundThemes = useLocalStorage<string[]>('screen-counter:round-themes', [])
-  const screen = useLocalStorage<ScreenName>('screen-counter:screen', 'setup')
-  const nextPlayerId = useLocalStorage('screen-counter:next-player-id', 1)
+  const roundThemes = useLocalStorage<string[]>(storageKey('round-themes'), [])
+  const screen = useLocalStorage<ScreenName>(storageKey('screen'), 'setup')
+  const nextPlayerId = useLocalStorage(storageKey('next-player-id'), 1)
   const settingsReturnScreen = useLocalStorage<ReturnScreenName>(
-    'screen-counter:settings-return',
+    storageKey('settings-return'),
     'setup',
   )
   // Which view a projection window (a second, fully independent app instance
@@ -57,7 +58,7 @@ export const useGameStore = defineStore('game', () => {
   // admin-only screen. 'round' and 'reveal' are the same grid with different
   // populations (see ScoreboardGrid.vue), not two separate views.
   const projectionScreen = useLocalStorage<'round' | 'reveal' | 'total'>(
-    'screen-counter:projection-screen',
+    storageKey('projection-screen'),
     'round',
   )
 
