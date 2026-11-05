@@ -1,4 +1,6 @@
 common:
+  beta: BÊTA
+  betaTitle: bêta
   settings: Paramètres d'affichage
   setup: Configuration des équipes
   openProjection: Projeter

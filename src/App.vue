@@ -3,9 +3,11 @@ import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from './stores/settings'
 import { DEFAULT_BACKGROUND_URL } from '@/lib/backgroundImage'
+import { IS_BETA } from '@/lib/storageKey'
 
 const settings = useSettingsStore()
-const { locale: i18nLocale } = useI18n({ useScope: 'global' })
+const { locale: i18nLocale, t } = useI18n({ useScope: 'global' })
+const APP_TITLE = 'Screen Counter'
 
 // The settings store owns the authoritative locale; mirror it onto the i18n
 // instance (and the document) synchronously, so the first render is already in
@@ -16,6 +18,7 @@ const { locale: i18nLocale } = useI18n({ useScope: 'global' })
 watchEffect(() => {
   i18nLocale.value = settings.locale
   document.documentElement.lang = settings.locale
+  document.title = IS_BETA ? `${APP_TITLE} (${t('common.betaTitle')})` : APP_TITLE
 })
 
 const bgImage = computed(() => settings.backgroundImage || DEFAULT_BACKGROUND_URL)
@@ -34,5 +37,6 @@ const appStyle = computed(() => ({
     <main class="shell">
       <router-view />
     </main>
+    <span v-if="IS_BETA" class="beta-badge" aria-hidden="true">{{ t('common.beta') }}</span>
   </div>
 </template>

@@ -8,6 +8,7 @@ import FontPicker from './FontPicker.vue'
 import ScoreGrid from './ScoreGrid.vue'
 import TotalGrid from './TotalGrid.vue'
 import type { Locale } from '@/i18n/locale'
+import { PROJECTION_WINDOW_NAME } from '@/lib/storageKey'
 
 const game = useGameStore()
 const settings = useSettingsStore()
@@ -50,7 +51,7 @@ async function onPickBackground(event: Event) {
 // Pages. If no second window is ever opened, this screen alone continues to
 // serve as both control and projection, exactly as before this feature.
 function openProjectionWindow() {
-  window.open(`${import.meta.env.BASE_URL}#/projection`, 'screen-counter-projection', "popup=yes")
+  window.open(`${import.meta.env.BASE_URL}#/projection`, PROJECTION_WINDOW_NAME, "popup=yes")
 }
 </script>
 
