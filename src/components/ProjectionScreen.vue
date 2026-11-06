@@ -15,8 +15,7 @@ import TotalGrid from './TotalGrid.vue'
 //
 // The order of the branches matters: 'round' and 'reveal' share one
 // ScoreboardGrid instance, so moving from the reveal to the next round keeps
-// the very same cards mounted instead of remounting them - which would replay
-// every glow and confetti burst at once.
+// the very same cards mounted instead of remounting them.
 const game = useGameStore()
 const { t } = useI18n({ useScope: 'global' })
 
@@ -61,6 +60,6 @@ const title = computed(() => t('round.title', { n: game.roundNumber }))
       </p>
     </header>
 
-    <ScoreboardGrid :revealing="game.projectionScreen === 'reveal'" />
+    <ScoreboardGrid />
   </section>
 </template>

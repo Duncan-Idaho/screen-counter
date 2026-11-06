@@ -1,58 +1,55 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useGameStore, type Player } from '@/stores/game'
-import { REVEAL_HIGHLIGHT_HOLD_MS } from '@/lib/projectionOrder'
-import LabeledNumber from './LabeledNumber.vue'
+import { useRevealEffects } from '@/composables/useRevealEffects'
+import ScoreRoll from './ScoreRoll.vue'
 
-// The projection window's card. It animates on mount rather than on a score
-// change: a card is only ever revealed once, already carrying its result. The
-// sequence is glow -> placement (CSS, as the siblings slide aside) -> confetti
-// (CSS, delayed until the placement settles) -> both fade out.
+// The projection window's tile: one big number, the scoreboard score. It reads
+// only penalty-free getters (getScoreBeforeRound / getScoreboardScore /
+// getRevealScore / isRevealedOnScoreboard).
 //
-// `animate` is false for every card that is merely sitting on the scoreboard
-// during a round: those mount too (on a reload, or on the way back from the
-// total screen), and must do so in silence.
-const props = defineProps<{ player: Player; animate: boolean }>()
+// Nothing animates on mount. A tile that is revealed when it appears (reload,
+// projection opened late) just sits there with its permanent glow; the "+N" chip,
+// the roll and the confetti hang off the not-revealed -> revealed transition
+// (useRevealEffects), and the roll is a CSS transition on ScoreRoll's track.
+const props = defineProps<{ player: Player }>()
 
 const game = useGameStore()
+const { t } = useI18n({ useScope: 'global' })
 
-const gain = computed(() => game.getRevealScore(props.player))
-const highlight = ref<'positive' | 'negative' | null>(null)
+const revealed = computed(() => game.isRevealedOnScoreboard(props.player))
+const from = computed(() => game.getScoreBeforeRound(props.player))
+const to = computed(() => game.getScoreboardScore(props.player))
 
-let fadeTimer: ReturnType<typeof setTimeout> | undefined
-
-onMounted(() => {
-  if (!props.animate || gain.value === 0) {
-    return
-  }
-
-  highlight.value = gain.value > 0 ? 'positive' : 'negative'
-  // The class comes off here; the last ~1s fade is the `box-shadow` transition
-  // on .score-card (main.css), not a JS phase.
-  fadeTimer = setTimeout(() => {
-    highlight.value = null
-  }, REVEAL_HIGHLIGHT_HOLD_MS)
-})
-
-onUnmounted(() => clearTimeout(fadeTimer))
+const { chip, celebrating } = useRevealEffects(
+  () => revealed.value,
+  () => game.getRevealScore(props.player),
+)
 </script>
 
 <template>
   <article
     class="score-card score-card--readonly"
     :class="{
-      'score-card--positive': highlight === 'positive',
-      'score-card--negative': highlight === 'negative',
+      'score-card--glow': revealed,
+      'score-card--positive': celebrating,
     }"
   >
     <h3>{{ player.name }}</h3>
 
     <div class="score-content">
-      <span class="round-score digits">{{ gain }}</span>
-      <LabeledNumber keypath="round.total" :n="game.getSettledScore(player)" class="total-score" />
+      <!-- Keyed on `from`: moving to the next round changes it, so the roll is
+           remounted and shows the new total without scrolling. During a click
+           `from` is constant, so the same track scrolls. -->
+      <span class="scoreboard-total digits">
+        <ScoreRoll :key="from" :from="from" :to="to" rolled />
+      </span>
     </div>
 
-    <div v-if="highlight === 'positive'" class="confetti-burst" aria-hidden="true">
+    <span v-if="chip !== null" class="gain-chip digits">{{ t('reveal.gain', { n: chip }) }}</span>
+
+    <div v-if="celebrating" class="confetti-burst" aria-hidden="true">
       <span v-for="n in 10" :key="n" class="confetti-piece" :style="{ '--i': n }" />
     </div>
   </article>

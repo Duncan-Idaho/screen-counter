@@ -32,6 +32,7 @@ round:
 reveal:
   title: "Round {n} results"
   reveal: Reveal {name}
+  gain: "+{n}"
 
 total:
   title: Totals
