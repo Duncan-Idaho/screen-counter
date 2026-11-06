@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ScoreRoll from '../ScoreRoll.vue'
@@ -50,6 +52,21 @@ describe('ScoreRoll', () => {
     expect(
       mountRoll({ from: 13, to: 10, rolled: true }).find('.score-roll').attributes('aria-label'),
     ).toBe('10')
+  })
+
+  it('exposes the line count so the offset can be a percentage of the track', () => {
+    const style = mountRoll({ from: 13, to: 10 }).find('.score-roll-track').attributes('style')
+
+    expect(style).toMatch(/--roll-count:\s*4/)
+  })
+
+  it('keeps the track offset independent of the tile size (no em/cqmin length)', () => {
+    const css = readFileSync(resolve(__dirname, '../../assets/main.css'), 'utf8')
+    const rule = /\.score-roll-track\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    const transform = /transform:\s*([^;]*);/.exec(rule)?.[1] ?? ''
+
+    expect(transform).toContain('%')
+    expect(transform).not.toMatch(/\d(em|cqmin|vmax|px)\b|-1em|var\(--roll-line-height/)
   })
 
   it('draws its numbers in the digits font', () => {

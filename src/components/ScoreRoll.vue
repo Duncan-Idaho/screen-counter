@@ -37,7 +37,7 @@ const index = computed(() => (props.rolled ? values.value.length - 1 : 0))
          otherwise recite one by one; the role and label on the element above
          reduce it to the number a sighted viewer can actually read right now.
          Kept inside, so the component keeps a single root element. -->
-    <span class="score-roll-track" :style="{ '--roll-index': index }" aria-hidden="true">
+    <span class="score-roll-track" :style="{ '--roll-index': index, '--roll-count': values.length }" aria-hidden="true">
       <span v-for="value in values" :key="value" class="score-roll-line">{{ value }}</span>
     </span>
   </span>

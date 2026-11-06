@@ -964,9 +964,12 @@ h3 {
 
 .score-roll-track {
   display: block;
-  /* Not translateY(-100% * index): a percentage translate resolves against the
-     element's own height, and the track is every line tall. */
-  transform: translateY(calc(var(--roll-index, 0) * var(--roll-line-height) * -1em));
+  /* A percentage of the track's own height, which is --roll-count lines tall:
+     index/count of it is exactly `index` lines. It must stay a percentage and
+     not become an `em` length: lengths resolve to px at computed-value time, so
+     resizing the tile (title-height slider, window, portrait) would change the
+     computed transform and run the 1.2s transition - the digit would float. */
+  transform: translateY(calc(var(--roll-index, 0) / var(--roll-count, 1) * -100%));
   transition: transform 1.2s ease-in-out;
 }
 
