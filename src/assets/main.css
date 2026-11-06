@@ -1087,12 +1087,6 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  /* Narrow card, number across its full width: the chip goes above it. */
-  .gain-chip {
-    top: 1cqmin;
-    translate: none;
-  }
-
   /* Portrait cards are tall and narrow, so cqmin tracks the card's width while
      the four control rows divide its height - the one combination where the
      landscape 16cqmin is still too generous. */
