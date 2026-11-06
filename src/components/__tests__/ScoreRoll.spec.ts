@@ -56,3 +56,56 @@ describe('ScoreRoll', () => {
     expect(mountRoll({ from: 3, to: 3 }).get('.score-roll').classes()).toContain('digits')
   })
 })
+
+describe('ScoreRoll highOnTop (end-of-game view)', () => {
+  function mountTop(props: { from: number; to: number; rolled?: boolean }) {
+    return mount(ScoreRoll, { props: { ...props, highOnTop: true } })
+  }
+  function offset(wrapper: ReturnType<typeof mountTop>) {
+    const style = wrapper.find('.score-roll-track').attributes('style') ?? ''
+
+    return Number(/--roll-offset:\s*(-?[\d.]+)/.exec(style)?.[1])
+  }
+
+  it('stacks a gain with the highest value on top, resting on the start line', () => {
+    const wrapper = mountTop({ from: 8, to: 10 })
+
+    expect(lines(wrapper)).toEqual(['10', '9', '8'])
+    expect(wrapper.find('.score-roll-track').classes()).toContain('score-roll-track--bottom')
+    expect(offset(wrapper)).toBe(0)
+  })
+
+  it('climbs a gain to the top line', () => {
+    const wrapper = mountTop({ from: 8, to: 10, rolled: true })
+
+    expect(offset(wrapper)).toBe(2)
+    expect(wrapper.find('.score-roll').attributes('aria-label')).toBe('10')
+  })
+
+  it('stacks a penalty with the highest value on top, starting on it', () => {
+    const wrapper = mountTop({ from: 8, to: 5 })
+
+    expect(lines(wrapper)).toEqual(['8', '7', '6', '5'])
+    expect(wrapper.find('.score-roll-track').classes()).toContain('score-roll-track--top')
+    expect(offset(wrapper)).toBe(0)
+    expect(offset(mountTop({ from: 8, to: 5, rolled: true }))).toBe(-3)
+  })
+
+  it('renders a single silent line when nothing changes', () => {
+    const wrapper = mountTop({ from: 7, to: 7, rolled: true })
+
+    expect(lines(wrapper)).toEqual(['7'])
+    expect(offset(wrapper)).toBe(0)
+  })
+
+  it('keeps the same track element from a gain to a penalty', async () => {
+    const wrapper = mountTop({ from: 8, to: 10, rolled: true })
+    const track = wrapper.find('.score-roll-track').element
+
+    await wrapper.setProps({ from: 10, to: 7 })
+
+    expect(wrapper.find('.score-roll-track').element).toBe(track)
+    expect(lines(wrapper)).toEqual(['10', '9', '8', '7'])
+    expect(offset(wrapper)).toBe(-3)
+  })
+})

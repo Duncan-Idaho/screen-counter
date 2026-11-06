@@ -27,7 +27,7 @@ function grandTotals(wrapper: ReturnType<typeof mountGrid>) {
 function rollIndex(wrapper: ReturnType<typeof mountGrid>) {
   const style = wrapper.find('.score-roll-track').attributes('style') ?? ''
 
-  return Number(/--roll-index:\s*(-?[\d.]+)/.exec(style)?.[1])
+  return Number(/--roll-offset:\s*(-?[\d.]+)/.exec(style)?.[1])
 }
 
 function playRounds(names: string[], pointsPerRound: number[][]) {
@@ -274,7 +274,7 @@ describe('TotalGrid', () => {
       expect(card().find('.gain-chip').exists()).toBe(true)
       expect(card().find('.gain-chip--penalty').text()).toBe('− 7')
       expect(card().find('.score-roll').attributes('aria-label')).toBe('13')
-      expect(Number(/--roll-index:\s*(\d+)/.exec(card().find('.score-roll-track').attributes('style')!)![1])).toBe(7)
+      expect(Number(/--roll-offset:\s*(-?\d+)/.exec(card().find('.score-roll-track').attributes('style')!)![1])).toBe(-7)
       expect(wrapper.find('.confetti-burst').exists()).toBe(false)
       // Still in its starting place: no tile moves during +N or -P.
       expect(names(wrapper)).toEqual(['Leader', 'Runner'])
