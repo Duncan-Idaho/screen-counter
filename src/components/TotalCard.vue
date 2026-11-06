@@ -32,8 +32,8 @@ const net = computed(() => gross.value - props.penalty)
 
 // Keyed off the *transition* into 'settled', never off the value: a card that
 // mounts settled has no transition to see, so a reload repaints the finished
-// board in silence. Same rule as ScoreboardCard's `animate` flag - a card
-// animates when it arrives, not when it is merely there.
+// board in silence. Same rule as ScoreboardCard's reveal effects - they run
+// on a transition, not because a card is merely there.
 const bursting = ref(false)
 let burstTimer: ReturnType<typeof setTimeout> | undefined
 
