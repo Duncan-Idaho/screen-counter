@@ -110,7 +110,7 @@ onUnmounted(() => clearTimeout(burstTimer))
         <span class="total-label">{{ t('total.totalLabel') }}</span>
         <!-- Re-keyed on the two ends, so toggling the penalties setting while the
              board is up re-mounts it and snaps rather than scrolling. -->
-        <ScoreRoll :key="`${gross}-${net}`" :from="gross" :to="net" rolled />
+        <ScoreRoll :key="`${gross}-${net}`" :from="gross" :to="net" rolled high-on-top />
       </p>
 
       <ol
@@ -139,7 +139,7 @@ onUnmounted(() => clearTimeout(burstTimer))
 
     <div v-else class="score-content">
       <span class="scoreboard-total digits">
-        <ScoreRoll :key="rollKey" :from="rollFrom" :to="rollTo" rolled />
+        <ScoreRoll :key="rollKey" :from="rollFrom" :to="rollTo" rolled high-on-top />
       </span>
     </div>
 

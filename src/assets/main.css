@@ -960,6 +960,7 @@ h3 {
   display: block;
   height: calc(var(--roll-line-height) * 1em);
   overflow: hidden;
+  position: relative;
 }
 
 .score-roll-track {
@@ -971,6 +972,27 @@ h3 {
      computed transform and run the 1.2s transition - the digit would float. */
   transform: translateY(calc(var(--roll-index, 0) / var(--roll-count, 1) * -100%));
   transition: transform 1.2s ease-in-out;
+}
+
+/* End-of-game convention (highOnTop): the highest value is the top line. A gain
+   rests on its bottom line and the column slides down to reveal higher values;
+   a penalty rests on its top line and the column slides up. Anchoring keeps the
+   start line framed while the column grows when `to` changes. */
+.score-roll-track--bottom,
+.score-roll-track--top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* A percentage of the track's own height, for the same reason as above. */
+  transform: translateY(calc(var(--roll-offset, 0) / var(--roll-count, 1) * 100%));
+}
+
+.score-roll-track--bottom {
+  bottom: 0;
+}
+
+.score-roll-track--top {
+  top: 0;
 }
 
 .score-roll-line {
