@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { i18n } from '@/i18n'
 import { useGameStore } from '@/stores/game'
-import { REVEAL_GAIN_CHIP_MS, REVEAL_HIGHLIGHT_HOLD_MS } from '@/lib/projectionOrder'
+import { REVEAL_GAIN_CHIP_MS, REVEAL_HIGHLIGHT_HOLD_MS, REVEAL_ROLL_MS } from '@/lib/projectionOrder'
 import ProjectionScreen from '../ProjectionScreen.vue'
 import ScoreboardGrid from '../ScoreboardGrid.vue'
 
@@ -131,21 +131,106 @@ describe('ScoreboardGrid', () => {
     expect(bene.get('.score-roll').attributes('aria-label')).toBe('6')
     // Same element, so the CSS transition has something to run on.
     expect(bene.get('.score-roll-track').element).toBe(before)
-    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
+    // The number turns first; the rank only changes once the roll is steady.
+    expect(names(wrapper)).toEqual(['Alia', 'Duncan', 'Bene', 'Chani'])
     expect(bene.find('.confetti-burst').exists()).toBe(true)
     expect(bene.classes()).toContain('score-card--positive')
     expect(bene.classes()).toContain('score-card--glow')
+
+    vi.advanceTimersByTime(REVEAL_ROLL_MS - 40 - 1)
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Alia', 'Duncan', 'Bene', 'Chani'])
+    vi.advanceTimersByTime(1)
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
 
     vi.advanceTimersByTime(REVEAL_HIGHLIGHT_HOLD_MS)
     await nextTick()
     expect(tile(wrapper, 'Bene').find('.confetti-burst').exists()).toBe(false)
     expect(tile(wrapper, 'Bene').classes()).not.toContain('score-card--positive')
     expect(tile(wrapper, 'Bene').classes()).toContain('score-card--glow')
-    expect(tile(wrapper, 'Bene').find('.gain-chip').exists()).toBe(true)
+    // The chip (2.5 s) goes out before the strong glow (3.2 s).
+    expect(tile(wrapper, 'Bene').find('.gain-chip').exists()).toBe(false)
+  })
 
-    vi.advanceTimersByTime(REVEAL_GAIN_CHIP_MS - REVEAL_HIGHLIGHT_HOLD_MS)
+  it('keeps the chip inside the score block, and for REVEAL_GAIN_CHIP_MS', async () => {
+    const game = playedGame()
+    game.endRound()
+    const wrapper = mountGrid()
+
+    game.revealPlayer(game.players.find((p) => p.name === 'Bene')!.id)
+    await nextTick()
+    expect(tile(wrapper, 'Bene').find('.score-content > .gain-chip').exists()).toBe(true)
+
+    vi.advanceTimersByTime(REVEAL_GAIN_CHIP_MS - 1)
+    await nextTick()
+    expect(tile(wrapper, 'Bene').find('.gain-chip').exists()).toBe(true)
+    vi.advanceTimersByTime(1)
     await nextTick()
     expect(tile(wrapper, 'Bene').find('.gain-chip').exists()).toBe(false)
+  })
+
+  it('gives two tiles revealed less than a roll apart each their own clock', async () => {
+    const game = playedGame()
+    game.endRound()
+    const wrapper = mountGrid()
+    const id = (name: string) => game.players.find((p) => p.name === name)!.id
+
+    game.revealPlayer(id('Bene'))
+    await nextTick()
+    vi.advanceTimersByTime(500)
+    game.revealPlayer(id('Alia'))
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Alia', 'Duncan', 'Bene', 'Chani'])
+
+    // Bene's roll ends at 1200 ms from his click (700 ms from now): he slides,
+    // Alia's roll (clicked at 500 ms) is still running and does not move.
+    vi.advanceTimersByTime(REVEAL_ROLL_MS - 500)
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
+    expect(tile(wrapper, 'Alia').get('.score-roll-track').attributes('style')).toContain(
+      '--roll-index',
+    )
+
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
+    expect(tile(wrapper, 'Alia').get('.score-roll').attributes('aria-label')).toBe('5')
+  })
+
+  it('leaves no timer behind when the round moves on during a roll', async () => {
+    const game = playedGame()
+    game.endRound()
+    const wrapper = mountGrid()
+
+    game.revealPlayer(game.players.find((p) => p.name === 'Bene')!.id)
+    await nextTick()
+    vi.advanceTimersByTime(300)
+    game.nextRound()
+    await nextTick()
+
+    // Outside a reveal the rank follows the totals at once, with nothing to wait for.
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
+    vi.advanceTimersByTime(REVEAL_ROLL_MS)
+    await nextTick()
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
+    expect(wrapper.find('.score-card--glow').exists()).toBe(false)
+  })
+
+  it('cancels its timers on unmount', async () => {
+    const game = playedGame()
+    game.endRound()
+    const wrapper = mountGrid()
+    const baseline = vi.getTimerCount()
+
+    game.revealPlayer(game.players.find((p) => p.name === 'Bene')!.id)
+    await nextTick()
+    expect(vi.getTimerCount()).toBeGreaterThan(baseline)
+    const running = vi.getTimerCount()
+
+    wrapper.unmount()
+    // The rank timer goes with the grid.
+    expect(vi.getTimerCount()).toBeLessThan(running)
   })
 
   it('marks a zero gain as revealed without chip, roll or confetti', async () => {
@@ -216,7 +301,7 @@ describe('ScoreboardGrid', () => {
     // Roster order in the DOM (a moved node would lose its running transition);
     // the new rank is only the CSS order.
     expect(wrapper.findAll('article').map((node) => node.get('h3').text())).toEqual(order)
-    expect(names(wrapper)[0]).toBe('Bene')
+    expect(names(wrapper)[0]).toBe('Alia')
     expect(tile(wrapper, 'Bene').element).toBe(bene.element)
     // Not yet at the new total: the roll starts from a clean style next frame.
     expect(tile(wrapper, 'Bene').get('.score-roll').attributes('aria-label')).toBe('1')
@@ -226,6 +311,11 @@ describe('ScoreboardGrid', () => {
 
     expect(tile(wrapper, 'Bene').get('.score-roll-track').element).toBe(track)
     expect(tile(wrapper, 'Bene').get('.score-roll').attributes('aria-label')).toBe('6')
+
+    vi.advanceTimersByTime(REVEAL_ROLL_MS)
+    await nextTick()
+    expect(names(wrapper)[0]).toBe('Bene')
+    expect(tile(wrapper, 'Bene').get('.score-roll-track').element).toBe(track)
   })
 
   it('stays silent when mounted mid-reveal, and still animates the next click', async () => {
@@ -247,6 +337,8 @@ describe('ScoreboardGrid', () => {
 
     expect(tile(wrapper, 'Alia').get('.gain-chip').text()).toBe('+2')
     expect(wrapper.findAll('.gain-chip')).toHaveLength(1)
+    // No slide scheduled for the tile that was already settled on mount.
+    expect(names(wrapper)).toEqual(['Bene', 'Alia', 'Duncan', 'Chani'])
   })
 
   it('ignores penalties on the number and the rank', async () => {

@@ -289,6 +289,19 @@ describe('TotalGrid', () => {
       expect(card().classes()).toContain('score-card--glow')
     })
 
+    it('keeps both chips inside the score block', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      await advance(10)
+      expect(wrapper.find('.score-content > .gain-chip').exists()).toBe(true)
+      await advance(1300)
+      expect(wrapper.find('.score-content > .gain-chip').exists()).toBe(true)
+      await advance(1300)
+      expect(wrapper.find('.score-content > .gain-chip--penalty').exists()).toBe(true)
+    })
+
     it('skips the penalty step for a team with none', async () => {
       const game = playPenalisedLeader()
       const wrapper = mountGrid({ sorted: true, revealing: true })

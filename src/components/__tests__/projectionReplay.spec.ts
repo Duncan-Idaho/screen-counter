@@ -299,7 +299,14 @@ describe('projection window, storage events replayed in order', () => {
     expect(frames[0]!.tiles.some((tile) => tile.chip || tile.glow)).toBe(false)
     const final = last(frames)!
 
-    expect(final.tiles[0]).toMatchObject({ name: 'Bene', number: '6', glow: true, chip: true })
+    // The number turns at once; the tile only slides once the roll is steady, so
+    // Bene is not yet first (see ScoreboardGrid).
+    expect(final.tiles.find((tile) => tile.name === 'Bene')).toMatchObject({
+      number: '6',
+      glow: true,
+      chip: true,
+    })
+    expect(final.tiles[0]!.name).toBe('Alia')
   })
 
   // The final view: the same numbers, in the same order, in every frame from the

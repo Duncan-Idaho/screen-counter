@@ -513,7 +513,7 @@ h3 {
 .scoreboard-grid > .score-card {
   /* Hold the confetti back until the card has finished taking its place -
      must match CONFETTI_DELAY_MS in projectionOrder.ts. */
-  --confetti-delay: 600ms;
+  --confetti-delay: 1800ms;
 }
 
 /* Must match REVEAL_ENTER_MS / REVEAL_MOVE_MS in projectionOrder.ts. */
@@ -705,6 +705,7 @@ h3 {
 }
 
 .score-content {
+  position: relative;
   padding: 0.8vmax;
   display: flex;
   flex-direction: column;
@@ -965,6 +966,7 @@ h3 {
 
 .score-roll-track {
   display: block;
+  text-align: center;
   /* A percentage of the track's own height, which is --roll-count lines tall:
      index/count of it is exactly `index` lines. It must stay a percentage and
      not become an `em` length: lengths resolve to px at computed-value time, so
@@ -1087,7 +1089,7 @@ h3 {
 
   /* Narrow card, number across its full width: the chip goes above it. */
   .gain-chip {
-    top: 14cqmin;
+    top: 1cqmin;
     translate: none;
   }
 

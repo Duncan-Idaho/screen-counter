@@ -141,16 +141,16 @@ onUnmounted(() => clearTimeout(burstTimer))
       <span class="scoreboard-total digits">
         <ScoreRoll :key="rollKey" :from="rollFrom" :to="rollTo" rolled high-on-top />
       </span>
+      <!-- One condition for both phases: the element is not re-created between
+           them, so the CSS animation does not restart. -->
+      <span v-if="phase === 'gain' || phase === 'gained'" class="gain-chip digits">{{
+        t('reveal.gain', { n: gain })
+      }}</span>
+      <span v-if="phase === 'penalty'" class="gain-chip gain-chip--penalty digits">{{
+        t('round.penalty', { n: penalty })
+      }}</span>
     </div>
 
-    <!-- One condition for both phases: the element is not re-created between
-         them, so the CSS animation does not restart. -->
-    <span v-if="phase === 'gain' || phase === 'gained'" class="gain-chip digits">{{
-      t('reveal.gain', { n: gain })
-    }}</span>
-    <span v-if="phase === 'penalty'" class="gain-chip gain-chip--penalty digits">{{
-      t('round.penalty', { n: penalty })
-    }}</span>
 
     <!-- Absolutely positioned rather than wrapping the content, so an in-flow
          button does not take a grid track of its own. The button stays active on
