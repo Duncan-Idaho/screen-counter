@@ -37,6 +37,14 @@ describe('ScoreRoll', () => {
     expect(lines(mountRoll({ from: 2, to: -2 }))).toEqual(['2', '1', '0', '-1', '-2'])
   })
 
+  it('also scrolls upwards, which is what a round reveal does (8 -> 12)', () => {
+    const wrapper = mountRoll({ from: 8, to: 12, rolled: true })
+
+    expect(lines(wrapper)).toEqual(['8', '9', '10', '11', '12'])
+    expect(rollIndex(wrapper)).toBe(4)
+    expect(wrapper.find('.score-roll').attributes('aria-label')).toBe('12')
+  })
+
   it('announces only the value currently framed', () => {
     expect(mountRoll({ from: 13, to: 10 }).find('.score-roll').attributes('aria-label')).toBe('13')
     expect(

@@ -1,43 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useGameStore, type Player } from '@/stores/game'
+import { useGameStore } from '@/stores/game'
 import { sortByTotalScore } from '@/lib/projectionOrder'
 import ScoreboardCard from './ScoreboardCard.vue'
 
-// The projection window's scoreboard. Not two views but one, with two
-// populations: during a round every team is on it, frozen on the last settled
-// round's result, and `endRound` empties it so the operator can fill it back up
-// one card per click. Because it is the same component instance either way (see
-// ProjectionScreen.vue), moving on to the next round changes nothing on screen -
-// the set goes from "all revealed" straight back to "all".
-const props = defineProps<{ revealing: boolean }>()
-
+// The projection window's scoreboard: always every team, ranked by the
+// scoreboard score. During a round it is frozen on the last settled result; at
+// the reveal the tiles stay, and each operator click moves one tile to its new
+// total and rank. One component instance for round and reveal (see
+// ProjectionScreen.vue), so nothing remounts between them.
 const game = useGameStore()
 
-const displayPlayers = computed(() => {
-  const shown = props.revealing
-    ? game.players.filter((player: Player) => game.isRevealed(player))
-    : game.players
-
-  return sortByTotalScore(shown, game.getSettledScore)
-})
+const displayPlayers = computed(() => sortByTotalScore(game.players, game.getScoreboardScore))
 </script>
 
 <template>
-  <!-- --grid-major/--grid-minor come from the *roster* size, not the number of
-       cards on screen, so a card keeps exactly the same box from the first
-       reveal to the last. .scoreboard-grid centres whatever is there. -->
+  <!-- --grid-major/--grid-minor come from the *roster* size, so a tile keeps the
+       same box whatever happens. -->
   <TransitionGroup
     tag="div"
     class="scoreboard-grid"
     name="scoreboard"
     :style="{ '--grid-major': game.gridMajor, '--grid-minor': game.gridMinor }"
   >
-    <ScoreboardCard
-      v-for="player in displayPlayers"
-      :key="player.id"
-      :player="player"
-      :animate="revealing"
-    />
+    <ScoreboardCard v-for="player in displayPlayers" :key="player.id" :player="player" />
   </TransitionGroup>
 </template>

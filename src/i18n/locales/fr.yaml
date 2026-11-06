@@ -32,6 +32,7 @@ round:
 reveal:
   title: "Manche {n} - Résultats"
   reveal: Révéler {name}
+  gain: "+{n}"
 
 total:
   title: Totaux

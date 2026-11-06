@@ -17,7 +17,7 @@ const { t } = useI18n({ useScope: 'global' })
 
 // Penalties are collected during the game but only applied at the end, so they
 // belong to the tally phase alone: the reveal card deliberately keeps showing
-// the exact pair of numbers the audience is about to see, and nothing else.
+// the two numbers of the round (points gained, settled total), and nothing else.
 const penaltiesOn = computed(() => props.mode === 'tally' && settings.penaltiesEnabled)
 const penalty = computed(() => game.getPenalty(props.player))
 </script>
@@ -27,7 +27,7 @@ const penalty = computed(() => game.getPenalty(props.player))
     class="score-card"
     :class="{
       'score-card--readonly': mode === 'reveal',
-      'score-card--revealed': mode === 'reveal' && game.isRevealed(player),
+      'score-card--revealed': mode === 'reveal' && game.isRoundRevealed(player),
     }"
   >
     <h3>{{ player.name }}</h3>
@@ -55,8 +55,8 @@ const penalty = computed(() => game.getPenalty(props.player))
         </span>
       </span>
     </button>
-    <!-- Reveal: the exact pair of numbers the audience is about to see, so the
-         operator reads the same card they are projecting. -->
+    <!-- Reveal: this round's gain and the settled total. The projection shows a
+         single number per tile instead; this is the operator's view. -->
     <button
       v-else
       type="button"

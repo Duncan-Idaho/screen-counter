@@ -26,10 +26,12 @@ export const FINAL_GROSS_HOLD_MS = 1000
 export const FINAL_ROLL_MS = 2000
 export const FINAL_SETTLE_MS = FINAL_GROSS_HOLD_MS + FINAL_ROLL_MS
 
-// Reveal sequence (ScoreboardCard.vue): the card fades in wearing its glow while
-// the cards already on screen slide aside, the confetti burst only fires once
-// that placement has settled, and the glow outlasts the burst. Each value must
-// match its counterpart in main.css.
+// Round reveal (ScoreboardCard.vue). The tiles never leave: on the operator's
+// click the "+N" chip, the roll of the total, the strong glow and the slide to
+// the new rank all start together; the confetti burst is held back until the
+// slide has settled, and the strong glow outlasts it before fading to the
+// permanent discreet one. Each value must match its counterpart in main.css.
+// REVEAL_ENTER_MS now only serves roster changes and `.score-order-enter-*`.
 export const REVEAL_ENTER_MS = 400
 export const REVEAL_MOVE_MS = 600
 export const CONFETTI_DURATION_MS = 1400
@@ -37,6 +39,11 @@ export const CONFETTI_DELAY_MS = REVEAL_MOVE_MS
 // After this, the glow class comes off and the last ~1s fade is the
 // `box-shadow` transition on `.score-card`, not a JS phase.
 export const REVEAL_HIGHLIGHT_HOLD_MS = CONFETTI_DELAY_MS + CONFETTI_DURATION_MS
+// The scoreboard's roll, livelier than the 2s end-of-game one. Must match the
+// `.scoreboard-total .score-roll-track` transition in main.css.
+export const REVEAL_ROLL_MS = 1200
+// How long the "+N" chip stays; must match the `gain-chip` animation in main.css.
+export const REVEAL_GAIN_CHIP_MS = 2500
 
 // Stable sort, descending by total score - ties keep their relative order.
 export function sortByTotalScore(players: Player[], getTotal: (player: Player) => number) {

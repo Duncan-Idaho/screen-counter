@@ -477,7 +477,7 @@ h3 {
      shorter side, so type stays proportional in both orientations. */
   container-type: size;
   /* Drives the projection window's highlight glow fading in and out
-     (ScoreboardCard.vue) - see .score-card--positive/--negative below. */
+     (ScoreboardCard.vue) - see .score-card--glow/--positive below. */
   transition: box-shadow 1s ease;
 }
 
@@ -508,10 +508,8 @@ h3 {
   height: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
 }
 
-/* The reveal empties the scoreboard and fills it back up a card at a time, each
-   slotting into settled-score order so the ones already there slide aside to
-   make room - the centring above is also what puts the first revealed card in
-   the middle of the screen. */
+/* The scoreboard keeps every tile on screen; a revealed team changes its number
+   and slides to its new rank (.scoreboard-move) while the others make room. */
 .scoreboard-grid > .score-card {
   /* Hold the confetti back until the card has finished taking its place -
      must match CONFETTI_DELAY_MS in projectionOrder.ts. */
@@ -534,8 +532,7 @@ h3 {
   transition: transform 0.6s ease;
 }
 
-/* End of round clears the whole board at once, so the cards can fade out in
-   place - nothing is entering that would need the room back. */
+/* Only roster changes (a team removed) leave the scoreboard now. */
 .scoreboard-leave-active {
   transition: opacity 0.3s ease;
 }
@@ -580,17 +577,67 @@ h3 {
   opacity: 0;
 }
 
-.score-card--positive,
-.score-card--negative {
+/* Persistent, discreet "already revealed" mark. Generic on purpose (the final
+   reveal will reuse it). Declared BEFORE --positive, same specificity, so the
+   strong glow wins while it lasts and the `box-shadow` transition on .score-card
+   fades it back down to this one - and out, when the class comes off. */
+.score-card--glow {
+  box-shadow:
+    0 0 0.6vmax 0.08vmax var(--positive-glow),
+    inset 0 0 0 0.08vmax var(--positive-glow);
+}
+
+.score-card--positive {
   box-shadow:
     0 0 1.5vmax 0.3vmax var(--positive-glow),
     inset 0 0 0 0.15vmax var(--positive-glow);
 }
 
-.score-card--negative {
-  box-shadow:
-    0 0 1.5vmax 0.3vmax var(--negative-glow),
-    inset 0 0 0 0.15vmax var(--negative-glow);
+/* The scoreboard tile's single number. */
+.scoreboard-total {
+  font-size: 50cqmin;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Must match REVEAL_ROLL_MS in projectionOrder.ts. */
+.scoreboard-total .score-roll-track {
+  transition-duration: 1.2s;
+}
+
+/* The transient "+N" beside the number. Must match REVEAL_GAIN_CHIP_MS. */
+.gain-chip {
+  position: absolute;
+  top: 50%;
+  right: 4cqmin;
+  translate: 0 -50%;
+  padding: 1cqmin 3cqmin;
+  border-radius: var(--ui-radius);
+  background: var(--positive-bg);
+  font-size: 18cqmin;
+  font-weight: 800;
+  pointer-events: none;
+  animation: gain-chip 2.5s ease forwards;
+}
+
+/* `scale`, not `transform`, so the `translate` above is left alone. */
+@keyframes gain-chip {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  10% {
+    opacity: 1;
+    scale: 1;
+  }
+  80% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1;
+  }
 }
 
 /* One-shot radial burst for score increases - 10 pieces rotated evenly
@@ -925,7 +972,7 @@ h3 {
 
 /* The odometer that counts the penalty off the grand total (ScoreRoll.vue): a
    one-line window over a column of every value from gross down to net.
-   1em here is .grand-total's 24cqmin, so this stays inside the card's
+   1em here is the parent's size (.grand-total's 24cqmin, or .scoreboard-total's), so this stays inside the card's
    container-query text sizing - it is not a viewport unit in disguise.
    The transition duration must match FINAL_ROLL_MS in projectionOrder.ts. */
 .score-roll {
@@ -1008,6 +1055,12 @@ h3 {
 
   .score-card--readonly:not(.total-card) {
     grid-template-columns: 1fr;
+  }
+
+  /* Narrow card, number across its full width: the chip goes above it. */
+  .gain-chip {
+    top: 14cqmin;
+    translate: none;
   }
 
   /* Portrait cards are tall and narrow, so cqmin tracks the card's width while
