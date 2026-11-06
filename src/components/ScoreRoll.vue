@@ -48,7 +48,9 @@ const offset = computed(() => {
   return props.rolled ? props.to - props.from : 0
 })
 const trackStyle = computed(() =>
-  props.highOnTop ? { '--roll-offset': offset.value } : { '--roll-index': index.value },
+  props.highOnTop
+    ? { '--roll-offset': offset.value, '--roll-count': values.value.length }
+    : { '--roll-index': index.value, '--roll-count': values.value.length },
 )
 </script>
 
