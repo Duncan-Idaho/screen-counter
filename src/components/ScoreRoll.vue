@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// An odometer for the end-of-game penalty deduction: a one-line window over a
-// column holding every value from the gross score down to the net one, scrolled
-// from the first line to the last (13, 12, 11, 10 for a penalty of 3).
+// An odometer: a one-line window over a column holding every value from one
+// score to another, scrolled from the first line to the last. Down for the
+// end-of-game penalty deduction (13, 12, 11, 10 for a penalty of 3), up for a
+// round reveal (8, 9, 10, 11, 12).
 //
 // Deliberately store-free and i18n-free, like ColorPicker: it prints digits and
 // nothing else, so it takes both ends of the count as numbers and leaves every
@@ -16,13 +17,15 @@ import { computed } from 'vue'
 // net score instantly and only a card whose `rolled` flips later scrolls.
 const props = defineProps<{ from: number; to: number; rolled?: boolean }>()
 
-// Counts down, and is allowed to cross zero: `getFinalScore` may go negative on
-// purpose (see stores/game.ts). `from === to` (no penalty, or penalties off)
-// yields the single line the card then never scrolls.
+// Counts either way, and is allowed to cross zero: `getFinalScore` may go
+// negative on purpose (see stores/game.ts). `from === to` (no penalty, no gain)
+// yields the single line the card then never scrolls - and, for a reveal, means
+// the new total is not in the DOM at all until it is earned.
 const values = computed(() => {
-  const span = Math.max(0, props.from - props.to)
+  const step = props.to >= props.from ? 1 : -1
+  const span = Math.abs(props.from - props.to)
 
-  return Array.from({ length: span + 1 }, (_, index) => props.from - index)
+  return Array.from({ length: span + 1 }, (_, index) => props.from + index * step)
 })
 
 const index = computed(() => (props.rolled ? values.value.length - 1 : 0))

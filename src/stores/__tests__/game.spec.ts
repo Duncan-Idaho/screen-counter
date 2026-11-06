@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
+import { storageKey } from '@/lib/storageKey'
 import { useGameStore } from '../game'
 
 function firstPlayer(game: ReturnType<typeof useGameStore>) {
@@ -142,9 +143,10 @@ describe('game store', () => {
     game.revealPlayer(paul!.id)
     game.revealPlayer(9999)
 
-    expect(game.revealedIds).toEqual([paul!.id])
-    expect(game.isRevealed(paul!)).toBe(true)
-    expect(game.isRevealed(chani!)).toBe(false)
+    expect(game.roundRevealedIds).toEqual([paul!.id])
+    expect(game.revealedIds).toEqual([])
+    expect(game.isRoundRevealed(paul!)).toBe(true)
+    expect(game.isRoundRevealed(chani!)).toBe(false)
   })
 
   it('ignores reveals outside the reveal screen', () => {
@@ -168,6 +170,7 @@ describe('game store', () => {
     game.revealPlayer(id)
     game.removePlayer(id)
 
+    expect(game.roundRevealedIds).toEqual([])
     expect(game.revealedIds).toEqual([])
   })
 
@@ -234,10 +237,10 @@ describe('game store', () => {
     // and back in. Only `endRound` clears it, right before the board is meant
     // to empty.
     game.nextRound()
-    expect(game.revealedIds).toEqual([irulan!.id, mohiam!.id])
+    expect(game.roundRevealedIds).toEqual([irulan!.id, mohiam!.id])
 
     game.endRound()
-    expect(game.revealedIds).toEqual([])
+    expect(game.roundRevealedIds).toEqual([])
   })
 
   it('empties the board so the end-of-game reveal starts blank', () => {
@@ -259,6 +262,8 @@ describe('game store', () => {
 
     expect(game.screen).toBe('total')
     expect(game.revealedIds).toEqual([])
+    // The frozen scoreboard keeps its reveal until the screen turns over.
+    expect(game.roundRevealedIds).toEqual([irulan!.id, mohiam!.id])
   })
 
   it('reveals a team on the total screen as well as on the reveal screen', () => {
@@ -295,6 +300,9 @@ describe('game store', () => {
     game.revealPlayer(id)
     game.nextRound()
     game.incrementScore(id)
+    // A leftover from an earlier end-of-game reveal, so that the emptying write
+    // is a real change.
+    game.revealedIds = [id]
     await nextTick()
 
     const writes = vi.spyOn(Storage.prototype, 'setItem')
@@ -303,10 +311,9 @@ describe('game store', () => {
     await nextTick()
 
     // The order is load-bearing across windows, where each key arrives as its
-    // own storage event: empty the board before switching screens (or the total
-    // view mounts with every team already revealed), and publish the round last
-    // (or the projection, still showing the frozen scoreboard, flashes the
-    // points the operator tallied in private).
+    // own storage event: empty the list before switching screens (or the total
+    // view mounts with a team already revealed), and publish the round last
+    // (the total view reads it, so it must land once that view is up and empty).
     expect(
       writes.mock.calls
         .map(([key]) => key)
@@ -540,10 +547,12 @@ describe('game store', () => {
     localStorage.setItem('screen-counter:settled-rounds', '2')
     localStorage.setItem('screen-counter:screen', 'reveal')
     localStorage.setItem('screen-counter:revealed', JSON.stringify([1, 7, 1]))
+    localStorage.setItem('screen-counter:round-revealed', JSON.stringify([1, 7, 1]))
 
     const game = useGameStore()
 
     expect(game.revealedIds).toEqual([1])
+    expect(game.roundRevealedIds).toEqual([1])
     expect(game.screen).toBe('reveal')
   })
 
@@ -872,5 +881,149 @@ describe('game store', () => {
     const secondSessionStore = useGameStore()
 
     expect(firstPlayer(secondSessionStore).penalties).toBe(2)
+  })
+})
+
+describe('persistent round reveal', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  // Three teams, round 1 played (3, 1, 0) and settled, round 2 tallied (2, 5, 0).
+  function playedGame() {
+    const game = useGameStore()
+
+    for (const name of ['Alia', 'Bene', 'Chani']) game.addPlayer(name)
+    game.startGame()
+    const [a, b] = game.players
+
+    for (let i = 0; i < 3; i++) game.incrementScore(a!.id)
+    game.incrementScore(b!.id)
+    game.endRound()
+    game.nextRound()
+    for (let i = 0; i < 2; i++) game.incrementScore(a!.id)
+    for (let i = 0; i < 5; i++) game.incrementScore(b!.id)
+
+    return game
+  }
+
+  it('writes the round list on reveal and the final list on total, never the other', () => {
+    const game = playedGame()
+    const [a, b] = game.players
+
+    game.endRound()
+    game.revealPlayer(a!.id)
+    expect(game.roundRevealedIds).toEqual([a!.id])
+    expect(game.revealedIds).toEqual([])
+
+    game.endGame()
+    game.revealPlayer(b!.id)
+    expect(game.revealedIds).toEqual([b!.id])
+    expect(game.roundRevealedIds).toEqual([a!.id])
+  })
+
+  it('writes round-revealed, then screen, then settled-rounds on endRound', async () => {
+    const game = playedGame()
+    const [a] = game.players
+
+    game.endRound()
+    game.revealPlayer(a!.id)
+    game.nextRound()
+    game.incrementScore(a!.id)
+    await nextTick()
+
+    const writes = vi.spyOn(Storage.prototype, 'setItem')
+
+    game.endRound()
+    await nextTick()
+
+    const keys = writes.mock.calls.map(([key]) => key)
+
+    expect(keys).toContain(storageKey('round-revealed'))
+    expect(keys.indexOf(storageKey('round-revealed'))).toBeLessThan(
+      keys.indexOf(storageKey('screen')),
+    )
+    expect(keys.indexOf(storageKey('screen'))).toBeLessThan(
+      keys.indexOf(storageKey('settled-rounds')),
+    )
+  })
+
+  it('reads the score before the round, whatever the tally or the penalties', () => {
+    const game = playedGame()
+    const [a, b, c] = game.players
+
+    expect(game.getScoreBeforeRound(a!)).toBe(3)
+    expect(game.getScoreBeforeRound(b!)).toBe(1)
+
+    game.incrementPenalty(a!.id)
+    expect(game.getScoreBeforeRound(a!)).toBe(3)
+    expect(game.getScoreboardScore(a!)).toBe(3)
+    expect(game.getScoreboardScore(c!)).toBe(0)
+  })
+
+  it('ignores a stale list outside the reveal', () => {
+    const game = playedGame()
+    const [a] = game.players
+
+    game.endRound()
+    game.revealPlayer(a!.id)
+    expect(game.getScoreboardScore(a!)).toBe(5)
+
+    game.nextRound()
+    expect(game.isRevealedOnScoreboard(a!)).toBe(false)
+    // Still the settled total, because currentRound moved on with it.
+    expect(game.getScoreboardScore(a!)).toBe(5)
+  })
+
+  it('shows the score before the round for unrevealed teams during the reveal', () => {
+    const game = playedGame()
+    const [a, b] = game.players
+
+    game.endRound()
+    expect(game.getScoreboardScore(a!)).toBe(3)
+    expect(game.getScoreboardScore(b!)).toBe(1)
+
+    game.revealPlayer(b!.id)
+    expect(game.getScoreboardScore(b!)).toBe(6)
+    expect(game.getScoreboardScore(a!)).toBe(3)
+  })
+
+  it('persists the round list and sanitizes it', async () => {
+    const game = playedGame()
+    const [a] = game.players
+
+    game.endRound()
+    game.revealPlayer(a!.id)
+    await nextTick()
+    setActivePinia(createPinia())
+    expect(useGameStore().roundRevealedIds).toEqual([a!.id])
+
+    localStorage.setItem(storageKey('round-revealed'), JSON.stringify([a!.id, 99, a!.id]))
+    setActivePinia(createPinia())
+    expect(useGameStore().roundRevealedIds).toEqual([a!.id])
+
+    localStorage.setItem(storageKey('round-revealed'), '"junk"')
+    setActivePinia(createPinia())
+    expect(useGameStore().roundRevealedIds).toEqual([])
+  })
+
+  it('clears the round list on a new game and on an empty roster', () => {
+    const game = playedGame()
+    const [a] = game.players
+
+    game.endRound()
+    game.revealPlayer(a!.id)
+    game.startGame()
+    expect(game.roundRevealedIds).toEqual([])
+
+    localStorage.setItem(storageKey('players'), '[]')
+    localStorage.setItem(storageKey('round-revealed'), '[1]')
+    setActivePinia(createPinia())
+    expect(useGameStore().roundRevealedIds).toEqual([])
   })
 })
