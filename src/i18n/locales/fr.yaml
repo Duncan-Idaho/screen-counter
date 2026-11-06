@@ -38,6 +38,9 @@ total:
   title: Totaux
   backToGame: Retour à la partie
   penaltyLabel: Pénalité
+  showDetail: Afficher le détail de {name}
+  hideDetail: Masquer le détail de {name}
+  detailOpen: Détail affiché
   totalLabel: Total
 
 projection:

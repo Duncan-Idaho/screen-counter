@@ -5,7 +5,7 @@ import { nextTick } from 'vue'
 import { i18n } from '@/i18n'
 import { useGameStore } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
-import { FINAL_GROSS_HOLD_MS, FINAL_SETTLE_MS } from '@/lib/projectionOrder'
+import { FINAL_BEAT_MS, REVEAL_ROLL_MS } from '@/lib/projectionOrder'
 import TotalGrid from '../TotalGrid.vue'
 
 // Four settled rounds, deliberately: splitGrid(4) is {2, 2} and splitGrid(5) is
@@ -157,10 +157,10 @@ describe('TotalGrid', () => {
     expect(grandTotals(wrapper)).toEqual(['8'])
   })
 
-  // The end of the game is a reveal too: the control window lists every team as
-  // a button, and the projection fills up one card per click, each running the
-  // three-beat ceremony (see lib/projectionOrder.ts).
-  describe('the end-of-game reveal', () => {
+  // The end of the game is the last round's reveal plus the penalties: the
+  // projection opens full, the control window drives one click per team (see
+  // lib/projectionOrder.ts for the clock).
+  describe('the end-of-game view', () => {
     beforeEach(() => {
       vi.useFakeTimers()
     })
@@ -169,9 +169,190 @@ describe('TotalGrid', () => {
       vi.useRealTimers()
     })
 
-    // Leader is ahead on points (20 v 16) and behind on the net (14 v 16), so
-    // the moment the penalty lands is the moment the two cards swap.
+    // Leader: 15 before the last round + 5, minus 7 = 13. Runner: 12 + 2 = 14.
+    // Ahead on points and behind on the net, so the settle is where they swap.
     function playPenalisedLeader() {
+      const game = playRounds(
+        ['Leader', 'Runner'],
+        [
+          [5, 5, 5, 5],
+          [4, 4, 4, 2],
+        ],
+      )
+      useSettingsStore().setPenaltiesEnabled(true)
+
+      for (let index = 0; index < 7; index += 1) game.incrementPenalty(game.players[0]!.id)
+
+      game.endGame()
+
+      return game
+    }
+
+    function names(wrapper: ReturnType<typeof mountGrid>) {
+      return wrapper.findAll('.total-card h3').map((node) => node.text())
+    }
+
+    async function advance(ms: number) {
+      vi.advanceTimersByTime(ms)
+      await nextTick()
+    }
+
+    it('lists every team as a button on the control window: reveal, then detail', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ selectable: true })
+      const button = () => wrapper.findAll('.card-reveal')[0]!
+
+      expect(wrapper.findAll('.card-reveal').length).toBe(2)
+      expect(button().attributes('aria-label')).toBe('Reveal Leader')
+      expect(button().attributes('aria-pressed')).toBeUndefined()
+
+      await button().trigger('click')
+
+      expect(game.revealedIds).toEqual([game.players[0]!.id])
+      expect(game.detailIds).toEqual([])
+      // Roster order, never the ranking: the operator's cards must not move
+      // under their finger.
+      expect(names(wrapper)).toEqual(['Leader', 'Runner'])
+      expect(wrapper.findAll('.total-card')[0]?.classes()).toContain('score-card--glow')
+      expect(wrapper.findAll('.total-card')[0]?.classes()).not.toContain('score-card--revealed')
+      expect(button().attributes('aria-label')).toBe('Show detail for Leader')
+      expect(button().attributes('aria-pressed')).toBe('false')
+
+      await button().trigger('click')
+
+      expect(game.detailIds).toEqual([game.players[0]!.id])
+      expect(wrapper.findAll('.total-card')[0]?.classes()).toContain('score-card--detail')
+      expect(wrapper.find('.detail-badge').text()).toBe('Detail shown')
+      expect(button().attributes('aria-label')).toBe('Hide detail for Leader')
+      expect(button().attributes('aria-pressed')).toBe('true')
+
+      await button().trigger('click')
+
+      expect(game.detailIds).toEqual([])
+      expect(wrapper.find('.detail-badge').exists()).toBe(false)
+    })
+
+    it('opens the projection full: every team, its starting score, one number', () => {
+      playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      expect(names(wrapper)).toEqual(['Leader', 'Runner'])
+      expect(grandTotals(wrapper)).toEqual(['15', '12'])
+      expect(wrapper.findAll('.score-roll').length).toBe(2)
+      expect(wrapper.find('.round-list').exists()).toBe(false)
+      expect(wrapper.find('.total-label').exists()).toBe(false)
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(wrapper.find('.score-card--glow').exists()).toBe(false)
+    })
+
+    it('walks a penalised team through gain, penalty and settle', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[1]!.id)
+      await nextTick()
+      await advance(FINAL_BEAT_MS)
+      expect(names(wrapper)).toEqual(['Leader', 'Runner'])
+
+      game.revealPlayer(game.players[0]!.id)
+      await nextTick()
+
+      // +5: the number rolls from 15 up to 20.
+      const card = () => wrapper.findAll('.total-card').find((c) => c.find('h3').text() === 'Leader')!
+      expect(card().find('.gain-chip').text()).toBe('+5')
+      expect(card().find('.gain-chip--penalty').exists()).toBe(false)
+      expect(card().classes()).toContain('score-card--positive')
+      expect(card().find('.score-roll').attributes('aria-label')).toBe('20')
+
+      // The roll is over: same chip, same number, the roll is now from = to.
+      await advance(REVEAL_ROLL_MS)
+      expect(card().find('.gain-chip').text()).toBe('+5')
+      expect(card().find('.score-roll').attributes('aria-label')).toBe('20')
+
+      // -6: the number rolls down from 20 to 14.
+      await advance(FINAL_BEAT_MS - REVEAL_ROLL_MS)
+      expect(card().find('.gain-chip').exists()).toBe(true)
+      expect(card().find('.gain-chip--penalty').text()).toBe('− 7')
+      expect(card().find('.score-roll').attributes('aria-label')).toBe('13')
+      expect(Number(/--roll-index:\s*(\d+)/.exec(card().find('.score-roll-track').attributes('style')!)![1])).toBe(7)
+      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
+      // Still in its starting place: no tile moves during +N or -P.
+      expect(names(wrapper)).toEqual(['Leader', 'Runner'])
+
+      // Settled: no chip, confetti, the tile slides to its net rank.
+      await advance(FINAL_BEAT_MS)
+      expect(card().find('.gain-chip').exists()).toBe(false)
+      expect(card().classes()).not.toContain('score-card--positive')
+      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
+      expect(names(wrapper)).toEqual(['Runner', 'Leader'])
+      // The glow outlives the ceremony.
+      expect(card().classes()).toContain('score-card--glow')
+    })
+
+    it('skips the penalty step for a team with none', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[1]!.id)
+      await nextTick()
+      const card = () => wrapper.findAll('.total-card')[1]!
+
+      expect(card().find('.gain-chip').text()).toBe('+2')
+
+      await advance(FINAL_BEAT_MS)
+
+      expect(card().find('.gain-chip').exists()).toBe(false)
+      expect(grandTotals(wrapper)[1]).toBe('14')
+      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
+    })
+
+    it('plays only the penalty for a team with no gain', async () => {
+      const game = playRounds(['Quiet'], [[5, 5, 5, 0]])
+      useSettingsStore().setPenaltiesEnabled(true)
+      for (let index = 0; index < 3; index += 1) game.incrementPenalty(game.players[0]!.id)
+      game.endGame()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      await nextTick()
+
+      expect(wrapper.find('.gain-chip--penalty').text()).toBe('− 3')
+      expect(grandTotals(wrapper)).toEqual(['12'])
+
+      await advance(FINAL_BEAT_MS)
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
+    })
+
+    it('settles at once, with confetti, a team with neither gain nor penalty', async () => {
+      const game = playRounds(['Still'], [[5, 5, 5, 0]])
+      useSettingsStore().setPenaltiesEnabled(true)
+      game.endGame()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      await nextTick()
+
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(grandTotals(wrapper)).toEqual(['15'])
+      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
+    })
+
+    it('plays no penalty step when the setting is off', async () => {
+      const game = playPenalisedLeader()
+      useSettingsStore().setPenaltiesEnabled(false)
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      await nextTick()
+      await advance(FINAL_BEAT_MS)
+
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(grandTotals(wrapper)[0]).toBe('20')
+      expect(names(wrapper)).toEqual(['Leader', 'Runner'])
+    })
+
+    it('does not give the gain twice to a team already revealed at the round reveal', async () => {
       const game = playRounds(
         ['Leader', 'Runner'],
         [
@@ -179,140 +360,18 @@ describe('TotalGrid', () => {
           [4, 4, 4, 4],
         ],
       )
-      useSettingsStore().setPenaltiesEnabled(true)
-
-      for (let index = 0; index < 6; index += 1) game.incrementPenalty(game.players[0]!.id)
-
+      game.revealPlayer(game.players[0]!.id)
       game.endGame()
-
-      return game
-    }
-
-    it('lists every team as a reveal button on the control window', async () => {
-      const game = playPenalisedLeader()
-      const wrapper = mountGrid({ selectable: true })
-      const buttons = wrapper.findAll('.card-reveal')
-
-      expect(buttons.length).toBe(2)
-      expect(buttons[0]?.attributes('aria-label')).toBe('Reveal Leader')
-
-      await buttons[0]!.trigger('click')
-
-      expect(game.revealedIds).toEqual([game.players[0]!.id])
-      // Roster order, never the ranking: the operator's cards must not move
-      // under their finger.
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Leader',
-        'Runner',
-      ])
-      expect(wrapper.findAll('.total-card')[0]?.classes()).toContain('score-card--revealed')
-    })
-
-    it('shows only the revealed teams on the projection', async () => {
-      const game = playPenalisedLeader()
       const wrapper = mountGrid({ sorted: true, revealing: true })
 
-      expect(wrapper.findAll('.total-card').length).toBe(0)
-
-      game.revealPlayer(game.players[1]!.id)
-      await nextTick()
-
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual(['Runner'])
-    })
-
-    it('walks a penalised team through the three beats', async () => {
-      const game = playPenalisedLeader()
-      const wrapper = mountGrid({ sorted: true, revealing: true })
+      // Leader keeps the +5 it received; Runner has not got its +4 yet.
+      expect(grandTotals(wrapper)).toEqual(['20', '12'])
 
       game.revealPlayer(game.players[0]!.id)
       await nextTick()
 
-      // Beat one: the gross score, glowing, with the chip laid out but hidden.
-      expect(grandTotals(wrapper)).toEqual(['20'])
-      expect(rollIndex(wrapper)).toBe(0)
-      expect(wrapper.find('.total-card').classes()).toContain('score-card--positive')
-      expect(wrapper.find('.round-item--penalty').classes()).toContain('round-item--pending')
-      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
-
-      // Beat two: the chip pulses and the total rolls down to the net score.
-      vi.advanceTimersByTime(FINAL_GROSS_HOLD_MS)
-      await nextTick()
-
-      expect(wrapper.find('.round-item--penalty').classes()).toContain('round-item--pulsing')
-      expect(wrapper.find('.round-item--penalty').classes()).not.toContain('round-item--pending')
-      expect(grandTotals(wrapper)).toEqual(['14'])
-      expect(rollIndex(wrapper)).toBe(6)
-
-      // Beat three: the pulse stops and the confetti fires.
-      vi.advanceTimersByTime(FINAL_SETTLE_MS - FINAL_GROSS_HOLD_MS)
-      await nextTick()
-
-      expect(wrapper.find('.round-item--penalty').classes()).not.toContain('round-item--pulsing')
-      expect(wrapper.find('.total-card').classes()).not.toContain('score-card--positive')
-      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
-    })
-
-    it('holds a newcomer at its gross rank until the penalty lands', async () => {
-      const game = playPenalisedLeader()
-      const wrapper = mountGrid({ sorted: true, revealing: true })
-
-      game.revealPlayer(game.players[1]!.id)
-      await nextTick()
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
-
-      game.revealPlayer(game.players[0]!.id)
-      await nextTick()
-
-      // 20 points still beat Runner's 16, so Leader comes in on top...
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Leader',
-        'Runner',
-      ])
-
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
-
-      // ...and drops past them the moment the deduction is applied. That late
-      // switch of the sort key is the whole point of the third beat.
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Runner',
-        'Leader',
-      ])
-    })
-
-    it('settles a team with nothing to deduct a beat early', async () => {
-      const game = playPenalisedLeader()
-      const wrapper = mountGrid({ sorted: true, revealing: true })
-
-      game.revealPlayer(game.players[1]!.id)
-      await nextTick()
-      vi.advanceTimersByTime(FINAL_GROSS_HOLD_MS)
-      await nextTick()
-
-      // No chip to pulse and nothing to count down, so the middle beat is
-      // skipped rather than held empty.
-      expect(wrapper.find('.total-card').classes()).not.toContain('score-card--positive')
-      expect(wrapper.find('.confetti-burst').exists()).toBe(true)
-    })
-
-    it('repaints an already-revealed board in silence', async () => {
-      const game = playPenalisedLeader()
-      game.revealPlayer(game.players[0]!.id)
-
-      // Mounting into a reveal already in progress - a reload, or a projection
-      // window opened late - must not replay anything.
-      const wrapper = mountGrid({ sorted: true, revealing: true })
-
-      expect(grandTotals(wrapper)).toEqual(['14'])
-      expect(wrapper.find('.total-card').classes()).not.toContain('score-card--positive')
-      expect(wrapper.find('.round-item--penalty').classes()).not.toContain('round-item--pending')
-      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
-
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
-
-      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(grandTotals(wrapper)[0]).toBe('20')
     })
 
     it('places the lighter penalty first when two teams tie on the net', async () => {
@@ -337,20 +396,16 @@ describe('TotalGrid', () => {
       // tiebreak, not from the order the operator happened to click in.
       game.revealPlayer(game.players[0]!.id)
       await nextTick()
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
+      await advance(FINAL_BEAT_MS * 2)
       game.revealPlayer(game.players[1]!.id)
       await nextTick()
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
+      await advance(FINAL_BEAT_MS * 2)
 
       expect(grandTotals(wrapper)).toEqual(['30', '30'])
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Docked7',
-        'Docked8',
-      ])
+      expect(names(wrapper)).toEqual(['Docked7', 'Docked8'])
     })
 
-    it('ties as though the newcomer had no penalty until its own lands', async () => {
+    it('ties as though the newcomer had no penalty until it settles', async () => {
       const game = playRounds(
         ['Seated', 'Newcomer'],
         [
@@ -360,7 +415,7 @@ describe('TotalGrid', () => {
       )
       useSettingsStore().setPenaltiesEnabled(true)
 
-      // Seated: 37 - 7 = 30, already on the board. Newcomer: 30 - 9 = 21.
+      // Seated: 37 - 7 = 30. Newcomer: 30 - 9 = 21, starting at 25.
       for (let index = 0; index < 7; index += 1) game.incrementPenalty(game.players[0]!.id)
       for (let index = 0; index < 9; index += 1) game.incrementPenalty(game.players[1]!.id)
 
@@ -370,28 +425,113 @@ describe('TotalGrid', () => {
 
       game.revealPlayer(game.players[0]!.id)
       await nextTick()
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
+      await advance(FINAL_BEAT_MS * 2)
+
+      // Seated is on 30, Newcomer still on its starting 25: Seated leads.
+      expect(names(wrapper)).toEqual(['Seated', 'Newcomer'])
 
       game.revealPlayer(game.players[1]!.id)
       await nextTick()
+      await advance(FINAL_BEAT_MS * 2)
 
-      // Level at 30, and the newcomer's 9 has not landed yet - so it ties as a
-      // clean team and goes first. Ranking it by a penalty the audience cannot
-      // see yet would seat it low with no explanation.
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Newcomer',
-        'Seated',
-      ])
+      expect(names(wrapper)).toEqual(['Seated', 'Newcomer'])
+      expect(grandTotals(wrapper)).toEqual(['30', '21'])
+    })
 
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
+    it('shows a toggled detail on a settled tile: rounds, penalty chip, net', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      await nextTick()
+      await advance(FINAL_BEAT_MS * 2)
+
+      game.toggleDetail(game.players[0]!.id)
       await nextTick()
 
-      expect(grandTotals(wrapper)).toEqual(['30', '21'])
-      expect(wrapper.findAll('.total-card h3').map((node) => node.text())).toEqual([
-        'Seated',
-        'Newcomer',
-      ])
+      const detailed = wrapper.findAll('.total-card').find((card) => card.find('h3').text() === 'Leader')!
+
+      expect(detailed.findAll('.round-item').length).toBe(ROUNDS + 1)
+      expect(detailed.find('.round-item--penalty').text()).toContain('7')
+      expect(detailed.find('.score-roll').attributes('aria-label')).toBe('13')
+      expect(detailed.find('.total-label').exists()).toBe(true)
+
+      game.toggleDetail(game.players[0]!.id)
+      await nextTick()
+
+      expect(wrapper.find('.round-list').exists()).toBe(false)
+    })
+
+    it('opens several details side by side, each tile on its own', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      for (const player of game.players) game.revealPlayer(player.id)
+      await nextTick()
+      await advance(FINAL_BEAT_MS * 2)
+
+      game.toggleDetail(game.players[0]!.id)
+      game.toggleDetail(game.players[1]!.id)
+      await nextTick()
+      expect(wrapper.findAll('.round-list').length).toBe(2)
+
+      game.toggleDetail(game.players[0]!.id)
+      await nextTick()
+      expect(wrapper.findAll('.round-list').length).toBe(1)
+    })
+
+    it('holds a detail toggled mid-ceremony back until the tile settles', async () => {
+      const game = playPenalisedLeader()
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      game.revealPlayer(game.players[0]!.id)
+      game.toggleDetail(game.players[0]!.id)
+      await nextTick()
+
+      expect(game.detailIds).toEqual([game.players[0]!.id])
+      expect(wrapper.find('.round-list').exists()).toBe(false)
+      expect(wrapper.find('.gain-chip').exists()).toBe(true)
+
+      await advance(FINAL_BEAT_MS * 2)
+
+      expect(wrapper.find('.round-list').exists()).toBe(true)
+    })
+
+    it('repaints a ceremony in progress in silence, detail included', async () => {
+      const game = playPenalisedLeader()
+      game.revealPlayer(game.players[1]!.id)
+      game.revealPlayer(game.players[0]!.id)
+      game.toggleDetail(game.players[0]!.id)
+
+      // A reload, or a projection window opened late.
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      expect(names(wrapper)).toEqual(['Runner', 'Leader'])
+      const leader = wrapper.findAll('.total-card')[1]!
+
+      expect(leader.find('.score-roll').attributes('aria-label')).toBe('13')
+      expect(leader.find('.round-list').exists()).toBe(true)
+      expect(leader.classes()).not.toContain('score-card--positive')
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
+
+      await advance(FINAL_BEAT_MS * 3)
+
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
+      expect(wrapper.find('.confetti-burst').exists()).toBe(false)
+    })
+
+    it('re-mounts a settled tile’s roll when the penalties setting flips', async () => {
+      const game = playPenalisedLeader()
+      game.revealPlayer(game.players[0]!.id)
+      const wrapper = mountGrid({ sorted: true, revealing: true })
+
+      useSettingsStore().setPenaltiesEnabled(false)
+      await nextTick()
+
+      expect(grandTotals(wrapper)).toContain('20')
+      expect(rollIndex(wrapper)).toBe(0)
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
     })
 
     it('never runs the ceremony on the control window', async () => {
@@ -401,11 +541,11 @@ describe('TotalGrid', () => {
       game.revealPlayer(game.players[0]!.id)
       await nextTick()
 
-      expect(grandTotals(wrapper)).toEqual(['14', '16'])
+      expect(grandTotals(wrapper)).toEqual(['13', '14'])
       expect(wrapper.find('.score-card--positive').exists()).toBe(false)
+      expect(wrapper.find('.gain-chip').exists()).toBe(false)
 
-      vi.advanceTimersByTime(FINAL_SETTLE_MS)
-      await nextTick()
+      await advance(FINAL_BEAT_MS * 3)
 
       expect(wrapper.find('.confetti-burst').exists()).toBe(false)
     })
