@@ -6,8 +6,9 @@ import { REVEAL_GAIN_CHIP_MS, REVEAL_HIGHLIGHT_HOLD_MS } from '@/lib/projectionO
 // *transition*, never on mount - `watch` has no `immediate` - so a reload or a
 // projection window opened mid-reveal is silent by construction.
 //
-// Knows neither the store nor the round: takes two getters, so the end-of-game
-// view can reuse it with its own values.
+// Knows neither the store nor the round: takes two getters. The end-of-game view
+// does not use it (its chip and confetti are two distinct instants separated by
+// the penalty step, derived from the phase clock in TotalGrid).
 export function useRevealEffects(revealed: () => boolean, gain: () => number) {
   const chip = ref<number | null>(null)
   const celebrating = ref(false)

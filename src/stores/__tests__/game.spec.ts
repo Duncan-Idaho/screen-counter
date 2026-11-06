@@ -1026,4 +1026,198 @@ describe('persistent round reveal', () => {
     setActivePinia(createPinia())
     expect(useGameStore().roundRevealedIds).toEqual([])
   })
+
+  describe('the final view', () => {
+    type Game = ReturnType<typeof useGameStore>
+
+    // Three rounds of Alia 2/3/4 and Bene 1/1/1. `closeLast` ends the last round
+    // (reveal screen), otherwise it is left open with its points tallied.
+    function playThree(game: Game, closeLast: boolean) {
+      game.addPlayer('Alia')
+      game.addPlayer('Bene')
+      game.startGame()
+      const [a, b] = game.players.map((player) => player.id)
+
+      for (const [x, y] of [
+        [2, 1],
+        [3, 1],
+      ] as const) {
+        for (let n = 0; n < x; n += 1) game.incrementScore(a!)
+        for (let n = 0; n < y; n += 1) game.incrementScore(b!)
+        game.endRound()
+        game.revealPlayer(a!)
+        game.revealPlayer(b!)
+        game.nextRound()
+      }
+
+      for (let n = 0; n < 4; n += 1) game.incrementScore(a!)
+      game.incrementScore(b!)
+      if (closeLast) game.endRound()
+
+      return { a: a!, b: b! }
+    }
+
+    const alia = (game: Game) => game.players[0]!
+    const bene = (game: Game) => game.players[1]!
+
+    it('A: ending from the round leaves every tile on its pre-round score, gain at the click', () => {
+      const game = useGameStore()
+      playThree(game, false)
+      game.endGame()
+
+      expect([game.getFinalStartScore(alia(game)), game.getFinalGain(alia(game))]).toEqual([5, 4])
+      expect([game.getFinalStartScore(bene(game)), game.getFinalGain(bene(game))]).toEqual([2, 1])
+    })
+
+    it('A: start + gain is the same before and after settledRounds is written', () => {
+      const game = useGameStore()
+      playThree(game, false)
+      const sum = () => game.players.map((p) => game.getFinalStartScore(p) + game.getFinalGain(p))
+      const during = sum()
+
+      game.endGame()
+
+      expect(game.settledRounds).toBe(3)
+      expect(sum()).toEqual(during)
+      expect(sum()).toEqual(game.players.map((p) => game.getSettledScore(p)))
+    })
+
+    it('A: a stale round list does not make the last round look already received', () => {
+      const game = useGameStore()
+      const { a } = playThree(game, false)
+
+      // Left behind by the round-2 reveal.
+      expect(game.roundRevealedIds).toContain(a)
+      game.endGame()
+
+      expect(game.roundRevealedIds).toEqual([])
+      expect(game.getFinalGain(alia(game))).toBe(4)
+    })
+
+    it('B: ending right after nextRound replays no round', () => {
+      const game = useGameStore()
+      game.addPlayer('Alia')
+      game.startGame()
+      game.incrementScore(alia(game).id)
+      game.endRound()
+      game.revealPlayer(alia(game).id)
+      game.nextRound()
+      game.endGame()
+
+      expect(game.settledRounds).toBe(1)
+      expect(game.getFinalStartScore(alia(game))).toBe(1)
+      expect(game.getFinalGain(alia(game))).toBe(0)
+    })
+
+    it('C: ending from the reveal keeps the list and does not give the gain twice', () => {
+      const game = useGameStore()
+      const { a } = playThree(game, true)
+      game.revealPlayer(a)
+      game.endGame()
+
+      expect(game.roundRevealedIds).toEqual([a])
+      // Revealed at the round reveal: keeps +4, nothing more to give.
+      expect([game.getFinalStartScore(alia(game)), game.getFinalGain(alia(game))]).toEqual([9, 0])
+      // Not revealed yet: still to come.
+      expect([game.getFinalStartScore(bene(game)), game.getFinalGain(bene(game))]).toEqual([2, 1])
+    })
+
+    it('writes the lists before the screen, and the round last', async () => {
+      const game = useGameStore()
+      const { a } = playThree(game, false)
+      game.revealedIds = [a]
+      game.detailIds = [a]
+      await nextTick()
+
+      const writes = vi.spyOn(Storage.prototype, 'setItem')
+      game.endGame()
+      await nextTick()
+
+      const keys = ['round-revealed', 'detail', 'revealed', 'screen', 'settled-rounds'].map(
+        storageKey,
+      )
+
+      expect(writes.mock.calls.map(([key]) => key).filter((key) => keys.includes(key))).toEqual(
+        keys,
+      )
+    })
+
+    it('toggles one detail at a time, only for a revealed team on the total screen', () => {
+      const game = useGameStore()
+      const { a, b } = playThree(game, false)
+
+      game.toggleDetail(a)
+      expect(game.detailIds).toEqual([])
+
+      game.endGame()
+      game.toggleDetail(a)
+      expect(game.detailIds).toEqual([])
+
+      game.revealPlayer(a)
+      game.revealPlayer(b)
+      game.toggleDetail(a)
+      game.toggleDetail(b)
+      expect(game.detailIds).toEqual([a, b])
+      expect(game.isDetailOpen(alia(game))).toBe(true)
+
+      game.toggleDetail(a)
+      expect(game.detailIds).toEqual([b])
+
+      game.toggleDetail(999)
+      expect(game.detailIds).toEqual([b])
+    })
+
+    it('empties the details on endGame, startGame and resumeGame', () => {
+      const game = useGameStore()
+      const { a } = playThree(game, false)
+
+      for (const leave of [() => game.endGame(), () => game.startGame(), () => game.resumeGame()]) {
+        game.endGame()
+        game.revealPlayer(a)
+        game.toggleDetail(a)
+        expect(game.detailIds).toEqual([a])
+        leave()
+        expect(game.detailIds).toEqual([])
+      }
+    })
+
+    it('drops a removed team from the details', () => {
+      const game = useGameStore()
+      const { a } = playThree(game, false)
+      game.endGame()
+      game.revealPlayer(a)
+      game.toggleDetail(a)
+      game.removePlayer(a)
+
+      expect(game.detailIds).toEqual([])
+    })
+
+    it('repairs the persisted details on load', async () => {
+      const game = useGameStore()
+      const { a, b } = playThree(game, false)
+      game.endGame()
+      game.revealPlayer(a)
+      game.toggleDetail(a)
+      await nextTick()
+
+      setActivePinia(createPinia())
+      expect(useGameStore().detailIds).toEqual([a])
+
+      // Unknown id, duplicate, and an id that is not revealed.
+      localStorage.setItem(storageKey('detail'), JSON.stringify([a, 99, a, b]))
+      setActivePinia(createPinia())
+      expect(useGameStore().detailIds).toEqual([a])
+
+      localStorage.setItem(storageKey('detail'), '"junk"')
+      setActivePinia(createPinia())
+      expect(useGameStore().detailIds).toEqual([])
+    })
+
+    it('empties the details when there are no players', () => {
+      localStorage.setItem(storageKey('detail'), '[1]')
+      setActivePinia(createPinia())
+
+      expect(useGameStore().detailIds).toEqual([])
+    })
+  })
 })

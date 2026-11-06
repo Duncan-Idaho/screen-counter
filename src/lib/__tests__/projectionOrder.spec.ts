@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Player } from '@/stores/game'
-import { sortByFinalScore, sortByTotalScore } from '../projectionOrder'
+import {
+  FINAL_BEAT_MS,
+  REVEAL_ROLL_MS,
+  finalTimeline,
+  sortByFinalScore,
+  sortByTotalScore,
+} from '../projectionOrder'
 
 function player(id: number, name: string, scores: number[], penalties = 0): Player {
   return { id, name, scores, penalties }
@@ -82,5 +88,37 @@ describe('sortByFinalScore', () => {
     sortByFinalScore(players, net, penalty)
 
     expect(players.map((p) => p.name)).toEqual(['Penalised', 'Clean'])
+  })
+})
+
+describe('finalTimeline', () => {
+  it('rolls the gain, then the penalty, then settles', () => {
+    expect(finalTimeline(5, 3)).toEqual([
+      { at: 0, phase: 'gain' },
+      { at: 1200, phase: 'gained' },
+      { at: 2500, phase: 'penalty' },
+      { at: 5000, phase: 'settled' },
+    ])
+    expect(REVEAL_ROLL_MS).toBe(1200)
+    expect(FINAL_BEAT_MS).toBe(2500)
+  })
+
+  it('settles after the gain when there is no penalty', () => {
+    expect(finalTimeline(5, 0)).toEqual([
+      { at: 0, phase: 'gain' },
+      { at: 1200, phase: 'gained' },
+      { at: 2500, phase: 'settled' },
+    ])
+  })
+
+  it('starts at the penalty when there is no gain', () => {
+    expect(finalTimeline(0, 3)).toEqual([
+      { at: 0, phase: 'penalty' },
+      { at: 2500, phase: 'settled' },
+    ])
+  })
+
+  it('settles at once with neither', () => {
+    expect(finalTimeline(0, 0)).toEqual([{ at: 0, phase: 'settled' }])
   })
 })

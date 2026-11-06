@@ -39,6 +39,9 @@ total:
   backToGame: Back to game
   penaltyLabel: Penalty
   totalLabel: Total
+  showDetail: Show detail for {name}
+  hideDetail: Hide detail for {name}
+  detailOpen: Detail shown
 
 projection:
   waiting: Waiting for the game to start.

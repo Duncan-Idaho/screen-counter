@@ -29,11 +29,8 @@ interface Frame {
 }
 
 function snapshot(wrapper: ReturnType<typeof mount>): Frame {
-  if (wrapper.find('.total-panel').exists()) {
-    return { view: 'total', tiles: [], cards: wrapper.findAll('.total-panel article').length }
-  }
-
-  const tiles = wrapper.findAll('.scoreboard-grid article').map((node) => ({
+  const total = wrapper.find('.total-panel').exists()
+  const tiles = wrapper.findAll(total ? '.total-panel article' : '.scoreboard-grid article').map((node) => ({
     name: node.get('h3').text(),
     number: node.get('.score-roll').attributes('aria-label') ?? '',
     glow: node.classes().includes('score-card--glow'),
@@ -41,7 +38,7 @@ function snapshot(wrapper: ReturnType<typeof mount>): Frame {
     confetti: node.find('.confetti-burst').exists(),
   }))
 
-  return { view: 'scoreboard', tiles, cards: tiles.length }
+  return { view: total ? 'total' : 'scoreboard', tiles, cards: tiles.length }
 }
 
 function id(game: Game, name: string) {
@@ -246,7 +243,7 @@ describe('projection window, storage events replayed in order', () => {
 
     expect(scoreboards.length).toBeGreaterThan(0)
     for (const frame of scoreboards) expect(numbers(frame)).toEqual(['Alia:3', 'Bene:1', 'Chani:0'])
-    expect(last(frames)).toMatchObject({ view: 'total', cards: 0 })
+    expect(last(frames)).toMatchObject({ view: 'total', cards: 3 })
   })
 
   it('keeps a partial reveal frozen until the total screen takes over', async () => {
@@ -265,10 +262,7 @@ describe('projection window, storage events replayed in order', () => {
 
     expect(numbers(scoreboards[0]!)).toEqual(['Bene:6', 'Alia:3', 'Chani:0'])
     for (const frame of scoreboards) expect(frame).toEqual(scoreboards[0])
-    expect(last(frames)).toMatchObject({ view: 'total', cards: 0 })
-    for (const frame of frames.filter((candidate) => candidate.view === 'total')) {
-      expect(frame.cards).toBe(0)
-    }
+    expect(last(frames)).toMatchObject({ view: 'total', cards: 3 })
   })
 
   it('leaves the scoreboard untouched while the operator tallies', async () => {
@@ -300,5 +294,131 @@ describe('projection window, storage events replayed in order', () => {
     const final = last(frames)!
 
     expect(final.tiles[0]).toMatchObject({ name: 'Bene', number: '6', glow: true, chip: true })
+  })
+
+  // The final view: the same numbers, in the same order, in every frame from the
+  // scoreboard to the full total view.
+  function expectNoMovement(frames: Frame[], expected: string[]) {
+    for (const frame of frames) {
+      expect(numbers(frame)).toEqual(expected)
+      expect(frame.tiles.every((tile) => !tile.chip && !tile.confetti)).toBe(true)
+    }
+    expect(last(frames)!.view).toBe('total')
+  }
+
+  it('A: ends the game from the round without any number moving', async () => {
+    const { frames, keys } = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Alia', 2)
+        points(game, 'Bene', 7)
+      },
+      (game) => game.endGame(),
+    )
+
+    expect(keys.indexOf('screen-counter:settled-rounds')).toBeGreaterThan(
+      keys.indexOf('screen-counter:screen'),
+    )
+    // Bene's 7 is private until the click: it never appears.
+    expectNoMovement(frames, ['Alia:3', 'Bene:1', 'Chani:0'])
+    expect(frames.some((frame) => frame.tiles.some((tile) => tile.glow))).toBe(false)
+  })
+
+  it('A: a stale list from an earlier reveal leaks no gain of the last round', async () => {
+    const { frames } = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Alia', 2)
+        game.endRound()
+        game.revealPlayer(id(game, 'Alia'))
+        game.nextRound()
+        points(game, 'Alia', 1)
+        points(game, 'Bene', 4)
+      },
+      (game) => game.endGame(),
+    )
+
+    expectNoMovement(frames, ['Alia:5', 'Bene:1', 'Chani:0'])
+    expect(last(frames)!.tiles.some((tile) => tile.glow)).toBe(false)
+  })
+
+  it('C: ends the game from a partial reveal with the same numbers and order', async () => {
+    const { frames, keys } = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Alia', 2)
+        points(game, 'Bene', 5)
+        game.endRound()
+        game.revealPlayer(id(game, 'Bene'))
+      },
+      (game) => game.endGame(),
+    )
+
+    expect(keys).not.toContain('screen-counter:settled-rounds')
+    expectNoMovement(frames, ['Bene:6', 'Alia:3', 'Chani:0'])
+  })
+
+  it('B: ends the game right after nextRound without any number moving', async () => {
+    const { frames, keys } = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+      },
+      (game) => game.endGame(),
+    )
+
+    expect(keys).not.toContain('screen-counter:settled-rounds')
+    expectNoMovement(frames, ['Alia:3', 'Bene:1', 'Chani:0'])
+  })
+
+  it('sends one event for a click and one for a detail toggle', async () => {
+    const reveal = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Bene', 5)
+        game.endGame()
+      },
+      (game) => game.revealPlayer(id(game, 'Bene')),
+    )
+
+    expect(reveal.keys).toEqual(['screen-counter:revealed'])
+    // The tile keeps its rank until its clock settles; only its number moves.
+    expect(last(reveal.frames)!.tiles.find((tile) => tile.name === 'Bene')).toMatchObject({
+      number: '6',
+      chip: true,
+      glow: true,
+    })
+
+    const detail = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Bene', 5)
+        game.endGame()
+        game.revealPlayer(id(game, 'Bene'))
+      },
+      (game) => game.toggleDetail(id(game, 'Bene')),
+    )
+
+    expect(detail.keys).toEqual(['screen-counter:detail'])
+  })
+
+  it('leaving the final view shows each tile only its old or its new number', async () => {
+    const { frames } = await replay(
+      (game) => {
+        sceneRoundTwo(game)
+        points(game, 'Alia', 2)
+        points(game, 'Bene', 5)
+        game.endGame()
+        game.revealPlayer(id(game, 'Bene'))
+      },
+      (game) => game.backToGame(),
+    )
+
+    const seen = (name: string) =>
+      new Set(frames.map((frame) => frame.tiles.find((tile) => tile.name === name)!.number))
+
+    // Bene was revealed: 6 throughout. Alia was not: 3 before, 5 once the
+    // scoreboard (a skipped team, the round is over) takes over.
+    expect(seen('Bene')).toEqual(new Set(['6']))
+    expect(seen('Alia')).toEqual(new Set(['3', '5']))
   })
 })
