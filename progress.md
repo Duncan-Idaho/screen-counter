@@ -1,5 +1,4 @@
-# Issue #13 - digit font + round banner height
+# Issue #15 - persistent round reveal
 
-Done: settings store (digitFont, bannerHeight), LabeledNumber, `.digits` on all numbers, projection banner + CSS,
-settings UI (second FontPicker, slider), locales, CLAUDE.md, specs.
-Next: lint/test/build, Chrome check (best effort), PR to `beta`.
+Done: roundRevealedIds + getScoreboardScore/getScoreBeforeRound (game.ts), bidirectional ScoreRoll, useRevealEffects, ScoreboardCard/Grid rewrite, CSS (glow, gain-chip), i18n, specs (ScoreboardGrid, projectionReplay), CLAUDE.md. lint/test/build green; Chrome check done (seeded localStorage).
+Next: PR to beta, CI, merge.
