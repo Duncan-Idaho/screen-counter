@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { CONFETTI_DELAY_MS } from '@/lib/projectionOrder'
 import ScoreRoll from '../ScoreRoll.vue'
 
 function mountRoll(props: { from: number; to: number; rolled?: boolean }) {
@@ -143,5 +144,27 @@ describe('ScoreRoll highOnTop (end-of-game view)', () => {
     expect(wrapper.find('.score-roll-track').element).toBe(track)
     expect(lines(wrapper)).toEqual(['10', '9', '8', '7'])
     expect(offset(wrapper)).toBe(-3)
+  })
+})
+
+describe('projection CSS (#30)', () => {
+  const css = readFileSync(resolve(__dirname, '../../assets/main.css'), 'utf8')
+  const body = (selector: string) => {
+    const start = css.indexOf(`\n${selector} {`)
+
+    return start < 0 ? '' : css.slice(start, css.indexOf('}', start))
+  }
+
+  it('centres every line of the track, whatever its widest line', () => {
+    expect(body('.score-roll-track')).toMatch(/text-align:\s*center/)
+  })
+
+  it('anchors the chips on the score block', () => {
+    expect(body('.score-content')).toMatch(/position:\s*relative/)
+  })
+
+  it('holds the confetti until the slide has landed', () => {
+    const rule = /\.scoreboard-grid > \.score-card\s*\{[^}]*--confetti-delay:\s*(\d+)ms/.exec(css)
+    expect(Number(rule?.[1])).toBe(CONFETTI_DELAY_MS)
   })
 })

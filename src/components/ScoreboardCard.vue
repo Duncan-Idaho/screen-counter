@@ -65,9 +65,8 @@ const { chip, celebrating } = useRevealEffects(
       <span class="scoreboard-total digits">
         <ScoreRoll :key="from" :from="from" :to="rollTo" rolled />
       </span>
+      <span v-if="chip !== null" class="gain-chip digits">{{ t('reveal.gain', { n: chip }) }}</span>
     </div>
-
-    <span v-if="chip !== null" class="gain-chip digits">{{ t('reveal.gain', { n: chip }) }}</span>
 
     <div v-if="celebrating" class="confetti-burst" aria-hidden="true">
       <span v-for="n in 10" :key="n" class="confetti-piece" :style="{ '--i': n }" />
