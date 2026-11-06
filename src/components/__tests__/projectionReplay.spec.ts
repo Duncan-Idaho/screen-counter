@@ -30,7 +30,11 @@ interface Frame {
 
 function snapshot(wrapper: ReturnType<typeof mount>): Frame {
   const total = wrapper.find('.total-panel').exists()
-  const tiles = wrapper.findAll(total ? '.total-panel article' : '.scoreboard-grid article').map((node) => ({
+  const nodes = wrapper.findAll(total ? '.total-panel article' : '.scoreboard-grid article')
+
+  // Scoreboard tiles stay in roster order in the DOM; the rank is their CSS order.
+  if (!total) nodes.sort((a, b) => Number((a.element as HTMLElement).style.order) - Number((b.element as HTMLElement).style.order))
+  const tiles = nodes.map((node) => ({
     name: node.get('h3').text(),
     number: node.get('.score-roll').attributes('aria-label') ?? '',
     glow: node.classes().includes('score-card--glow'),
@@ -109,6 +113,8 @@ async function replay(scene: (game: Game) => void, action: (game: Game) => void)
       new StorageEvent('storage', { key, newValue, storageArea: localStorage }),
     )
     await nextTick()
+    // The scoreboard roll's destination lags one animation frame (ScoreboardCard).
+    await new Promise((resolve) => setTimeout(resolve, 40))
     frames.push(snapshot(wrapper))
   }
 

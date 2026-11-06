@@ -55,14 +55,16 @@ const trackStyle = computed(() =>
 </script>
 
 <template>
-  <span class="score-roll digits" role="img" :aria-label="String(rolled ? to : from)">
+  <span
+    class="score-roll digits"
+    :class="highOnTop && (gaining ? 'score-roll--bottom' : 'score-roll--top')"
+    role="img" :aria-label="String(rolled ? to : from)">
     <!-- The track carries every intermediate number, which a screen reader would
          otherwise recite one by one; the role and label on the element above
          reduce it to the number a sighted viewer can actually read right now.
          Kept inside, so the component keeps a single root element. -->
     <span
       class="score-roll-track"
-      :class="highOnTop && (gaining ? 'score-roll-track--bottom' : 'score-roll-track--top')"
       :style="trackStyle"
       aria-hidden="true"
     >

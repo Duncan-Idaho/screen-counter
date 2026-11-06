@@ -978,21 +978,27 @@ h3 {
    rests on its bottom line and the column slides down to reveal higher values;
    a penalty rests on its top line and the column slides up. Anchoring keeps the
    start line framed while the column grows when `to` changes. */
-.score-roll-track--bottom,
-.score-roll-track--top {
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* A percentage of the track's own height, for the same reason as above. */
+/* The track stays in flow (never position: absolute): an absolutely positioned
+   track contributes no width, and the shrink-wrapped tile around it collapsed to
+   0px, hiding every digit. Anchoring is done by the window instead: a flex column
+   whose items overflow towards the start when `justify-content: flex-end`, so a
+   gain's tall track grows upwards around its bottom line, and the transform that
+   follows (a percentage of the track, see above) is a real change from the idle
+   one-line state, which is what lets the roll run. */
+.score-roll--bottom,
+.score-roll--top {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-roll--bottom {
+  justify-content: flex-end;
+}
+
+.score-roll--bottom > .score-roll-track,
+.score-roll--top > .score-roll-track {
+  flex: none;
   transform: translateY(calc(var(--roll-offset, 0) / var(--roll-count, 1) * 100%));
-}
-
-.score-roll-track--bottom {
-  bottom: 0;
-}
-
-.score-roll-track--top {
-  top: 0;
 }
 
 .score-roll-line {

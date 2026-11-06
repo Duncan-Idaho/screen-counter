@@ -88,7 +88,7 @@ describe('ScoreRoll highOnTop (end-of-game view)', () => {
     const wrapper = mountTop({ from: 8, to: 10 })
 
     expect(lines(wrapper)).toEqual(['10', '9', '8'])
-    expect(wrapper.find('.score-roll-track').classes()).toContain('score-roll-track--bottom')
+    expect(wrapper.find('.score-roll').classes()).toContain('score-roll--bottom')
     expect(offset(wrapper)).toBe(0)
   })
 
@@ -103,7 +103,7 @@ describe('ScoreRoll highOnTop (end-of-game view)', () => {
     const wrapper = mountTop({ from: 8, to: 5 })
 
     expect(lines(wrapper)).toEqual(['8', '7', '6', '5'])
-    expect(wrapper.find('.score-roll-track').classes()).toContain('score-roll-track--top')
+    expect(wrapper.find('.score-roll').classes()).toContain('score-roll--top')
     expect(offset(wrapper)).toBe(0)
     expect(offset(mountTop({ from: 8, to: 5, rolled: true }))).toBe(-3)
   })
@@ -113,6 +113,25 @@ describe('ScoreRoll highOnTop (end-of-game view)', () => {
 
     expect(lines(wrapper)).toEqual(['7'])
     expect(offset(wrapper)).toBe(0)
+  })
+
+  it('never takes the track out of flow (an absolute track collapsed the tile to 0px)', () => {
+    const css = readFileSync(resolve(__dirname, '../../assets/main.css'), 'utf8')
+    const rules = [...css.matchAll(/(\.score-roll[^{}]*)\{([^}]*)\}/g)]
+
+    expect(rules.length).toBeGreaterThan(0)
+    for (const [, selector, body] of rules) {
+      expect(`${selector}{${body}}`).not.toMatch(/position:\s*absolute/)
+    }
+  })
+
+  it('anchors a gain on its bottom line and a penalty on its top line through the window', () => {
+    const css = readFileSync(resolve(__dirname, '../../assets/main.css'), 'utf8')
+
+    expect(/\.score-roll--bottom\s*\{[^}]*justify-content:\s*flex-end/.test(css)).toBe(true)
+    expect(/\.score-roll--top\s*>\s*\.score-roll-track[^{]*\{[^}]*translateY\([^;]*%\)/.test(css)).toBe(
+      true,
+    )
   })
 
   it('keeps the same track element from a gain to a penalty', async () => {

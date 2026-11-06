@@ -14,12 +14,20 @@ function mountGrid() {
 
 type Wrapper = ReturnType<typeof mountGrid>
 
+// The DOM stays in roster order (a re-ordered node loses its running roll); the
+// rank is the CSS `order` on each tile.
+function ranked(wrapper: Wrapper) {
+  return wrapper
+    .findAll('article')
+    .sort((a, b) => Number((a.element as HTMLElement).style.order) - Number((b.element as HTMLElement).style.order))
+}
+
 function names(wrapper: Wrapper) {
-  return wrapper.findAll('article h3').map((node) => node.text())
+  return ranked(wrapper).map((node) => node.get('h3').text())
 }
 
 function totals(wrapper: Wrapper) {
-  return wrapper.findAll('article').map((node) => node.get('.score-roll').attributes('aria-label'))
+  return ranked(wrapper).map((node) => node.get('.score-roll').attributes('aria-label'))
 }
 
 function tile(wrapper: Wrapper, name: string) {
@@ -112,6 +120,8 @@ describe('ScoreboardGrid', () => {
 
     game.revealPlayer(game.players.find((p) => p.name === 'Bene')!.id)
     await nextTick()
+    vi.advanceTimersByTime(40)
+    await nextTick()
 
     const bene = tile(wrapper, 'Bene')
 
@@ -190,6 +200,32 @@ describe('ScoreboardGrid', () => {
     expect(bene.get('.score-roll').attributes('aria-label')).toBe('6')
     expect(bene.find('.gain-chip').exists()).toBe(false)
     expect(bene.find('.confetti-burst').exists()).toBe(false)
+  })
+
+  it('rolls a tile that overtakes another: same node, same track, destination a frame later', async () => {
+    const game = playedGame()
+    game.endRound()
+    const wrapper = mountGrid()
+    const order = wrapper.findAll('article').map((node) => node.get('h3').text())
+    const bene = tile(wrapper, 'Bene')
+    const track = bene.get('.score-roll-track').element
+
+    game.revealPlayer(game.players.find((p) => p.name === 'Bene')!.id)
+    await nextTick()
+
+    // Roster order in the DOM (a moved node would lose its running transition);
+    // the new rank is only the CSS order.
+    expect(wrapper.findAll('article').map((node) => node.get('h3').text())).toEqual(order)
+    expect(names(wrapper)[0]).toBe('Bene')
+    expect(tile(wrapper, 'Bene').element).toBe(bene.element)
+    // Not yet at the new total: the roll starts from a clean style next frame.
+    expect(tile(wrapper, 'Bene').get('.score-roll').attributes('aria-label')).toBe('1')
+
+    vi.advanceTimersByTime(40)
+    await nextTick()
+
+    expect(tile(wrapper, 'Bene').get('.score-roll-track').element).toBe(track)
+    expect(tile(wrapper, 'Bene').get('.score-roll').attributes('aria-label')).toBe('6')
   })
 
   it('stays silent when mounted mid-reveal, and still animates the next click', async () => {

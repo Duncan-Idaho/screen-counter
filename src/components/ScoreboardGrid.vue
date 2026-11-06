@@ -11,7 +11,20 @@ import ScoreboardCard from './ScoreboardCard.vue'
 // ProjectionScreen.vue), so nothing remounts between them.
 const game = useGameStore()
 
-const displayPlayers = computed(() => sortByTotalScore(game.players, game.getScoreboardScore))
+// The DOM stays in roster order and the ranking is a CSS `order`. Re-ordering the
+// nodes themselves (what a keyed v-for does) detaches and re-attaches them, and a
+// re-attached element loses its running CSS transition: a tile that overtakes
+// another would jump to its new total instead of rolling. TransitionGroup still
+// FLIP-animates the slide, since it compares positions, not node identity.
+const rankById = computed(
+  () =>
+    new Map(
+      sortByTotalScore(game.players, game.getScoreboardScore).map((player, rank) => [
+        player.id,
+        rank,
+      ]),
+    ),
+)
 </script>
 
 <template>
@@ -23,6 +36,11 @@ const displayPlayers = computed(() => sortByTotalScore(game.players, game.getSco
     name="scoreboard"
     :style="{ '--grid-major': game.gridMajor, '--grid-minor': game.gridMinor }"
   >
-    <ScoreboardCard v-for="player in displayPlayers" :key="player.id" :player="player" />
+    <ScoreboardCard
+      v-for="player in game.players"
+      :key="player.id"
+      :player="player"
+      :style="{ order: rankById.get(player.id) }"
+    />
   </TransitionGroup>
 </template>
