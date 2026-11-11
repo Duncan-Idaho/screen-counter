@@ -36,6 +36,14 @@
   --app-font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
     Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue";
 
+  /* Mirrored by DEFAULT_BANNER_HEIGHT in src/stores/settings.ts. */
+  --projection-banner-height: 33dvh;
+
+  /* No --app-digit-font here on purpose: a custom property resolves where it is
+     declared, so `var(--app-font)` on :root would freeze the default font and
+     never see the operator's choice set inline on `.app`. The settings store
+     emits --app-digit-font inline instead (falling back to var(--app-font)). */
+
   --ui-gap: 0.9vmax;
   --ui-radius: 0.7vmax;
   --score-control-width: 25%;
@@ -84,6 +92,11 @@ body {
   font-family: var(--app-font), sans-serif;
 }
 
+/* Every number of the game carries this (scores, totals, chips, round number). */
+.digits {
+  font-family: var(--app-digit-font), sans-serif;
+}
+
 .shell {
   width: 100vw;
   height: 100dvh;
@@ -119,6 +132,7 @@ body {
 
 /* One control, but it keeps the grid idiom of the sections around it. */
 .font-form,
+.range-form,
 .penalties-form {
   display: grid;
   gap: 0.5vmax;
@@ -136,6 +150,29 @@ body {
   border-radius: 0.45vmax;
   background: var(--card-bg);
   cursor: pointer;
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(10vmax, 2fr) 5ch;
+  align-items: center;
+  gap: 0.6vmax;
+  padding: 0.5vmax 0.8vmax;
+  border-radius: 0.45vmax;
+  background: var(--card-bg);
+}
+
+.range-input {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  accent-color: var(--button-bg);
+}
+
+.range-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* The generic `input` rule below paints every input white with a border and
@@ -340,28 +377,52 @@ button:disabled {
   font-size: clamp(18px, 1.8vmax, 34px);
 }
 
-/* The projection header has no actions to balance against, so the title (and
-   its theme) sit centered rather than pinned to the left edge; and with no
-   operator controls competing for attention, the theme reads at the same
-   size as the round counter instead of as a smaller annotation. */
-.projection-header {
-  justify-content: center;
-}
-
-.projection-header .round-heading {
-  flex: 0 0 auto;
-}
-
-.projection-header .theme-readonly {
-  font-size: clamp(18px, 1.8vmax, 34px);
-  max-width: 50vmax;
-}
-
 .round-panel,
 .total-panel {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: var(--ui-gap);
+}
+
+/* Must stay after .round-panel (same specificity). */
+.projection-round-panel {
+  grid-template-rows: var(--projection-banner-height) minmax(0, 1fr);
+}
+
+.projection-banner {
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+/* cq* units only resolve on descendants of the container, hence these rules.
+   Height-bound, and width-bound from the character count (0.6em per glyph). */
+.projection-banner-title {
+  max-width: 100%;
+  font-size: min(85cqh, calc(96cqw / (var(--chars) * 0.6)));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.projection-banner--themed .projection-banner-title {
+  font-size: min(55cqh, calc(96cqw / (var(--chars) * 0.6)));
+}
+
+.projection-banner-theme {
+  max-width: 100%;
+  font-size: min(32cqh, calc(96cqw / (var(--chars) * 0.6)));
+  font-style: italic;
+  line-height: 1.1;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ProjectionScreen's total view renders no header (see App.vue's shared
@@ -416,7 +477,7 @@ h3 {
      shorter side, so type stays proportional in both orientations. */
   container-type: size;
   /* Drives the projection window's highlight glow fading in and out
-     (ScoreboardCard.vue) - see .score-card--positive/--negative below. */
+     (ScoreboardCard.vue) - see .score-card--glow/--positive below. */
   transition: box-shadow 1s ease;
 }
 
@@ -447,14 +508,12 @@ h3 {
   height: calc((100% - var(--ui-gap) * (var(--grid-minor, 2) - 1)) / var(--grid-minor, 2));
 }
 
-/* The reveal empties the scoreboard and fills it back up a card at a time, each
-   slotting into settled-score order so the ones already there slide aside to
-   make room - the centring above is also what puts the first revealed card in
-   the middle of the screen. */
+/* The scoreboard keeps every tile on screen; a revealed team changes its number
+   and slides to its new rank (.scoreboard-move) while the others make room. */
 .scoreboard-grid > .score-card {
   /* Hold the confetti back until the card has finished taking its place -
      must match CONFETTI_DELAY_MS in projectionOrder.ts. */
-  --confetti-delay: 600ms;
+  --confetti-delay: 1800ms;
 }
 
 /* Must match REVEAL_ENTER_MS / REVEAL_MOVE_MS in projectionOrder.ts. */
@@ -473,8 +532,7 @@ h3 {
   transition: transform 0.6s ease;
 }
 
-/* End of round clears the whole board at once, so the cards can fade out in
-   place - nothing is entering that would need the room back. */
+/* Only roster changes (a team removed) leave the scoreboard now. */
 .scoreboard-leave-active {
   transition: opacity 0.3s ease;
 }
@@ -485,19 +543,18 @@ h3 {
 
 /* Projection window only (TotalGrid.vue ranks the cards when `sorted`): the
    reorder slide, which must match MOVE_DURATION_MS in projectionOrder.ts. At the
-   end of the game it is also the third beat of the ceremony - the newcomer
-   dropping from its gross rank to its net one - so the 2s fills that beat.
+   end of the game it is also the last beat of a team's clock - the tile sliding
+   from its starting rank to its net one.
    The glow below is a ring rather than a solid fill, so it doesn't fight the
    user's chosen card text color. */
 .score-order-move {
   transition: transform 2s ease;
 }
 
-/* The total grid declared only -move until the end of the game became a reveal
-   too, so a card revealed there would have popped in. A TransitionGroup does not
-   run enter transitions on its own initial mount, so a board that is already
-   full - a reload, or a projection window opened late - still renders in one
-   silent shot. Must match REVEAL_ENTER_MS in projectionOrder.ts. */
+/* Roster changes on the total grid. A TransitionGroup does not run enter
+   transitions on its own initial mount, so the full board - on entry, on reload,
+   or in a projection window opened late - renders in one silent shot. Must match
+   REVEAL_ENTER_MS in projectionOrder.ts. */
 .score-order-enter-from {
   opacity: 0;
   transform: scale(0.6);
@@ -509,8 +566,7 @@ h3 {
     transform 0.4s ease;
 }
 
-/* `endGame` empties the whole board at once, so the cards can fade out in
-   place - nothing is entering that would need the room back. */
+/* A card leaving (a removed player, or the board unmounting): fade in place. */
 .score-order-leave-active {
   transition: opacity 0.3s ease;
 }
@@ -519,17 +575,69 @@ h3 {
   opacity: 0;
 }
 
-.score-card--positive,
-.score-card--negative {
+/* Persistent, discreet "already revealed" mark. Generic on purpose (the final
+   end-of-game view reuses it). Declared BEFORE --positive, same specificity, so the
+   strong glow wins while it lasts and the `box-shadow` transition on .score-card
+   fades it back down to this one - and out, when the class comes off. */
+.score-card--glow {
+  box-shadow:
+    0 0 0.6vmax 0.08vmax var(--positive-glow),
+    inset 0 0 0 0.08vmax var(--positive-glow);
+}
+
+.score-card--positive {
   box-shadow:
     0 0 1.5vmax 0.3vmax var(--positive-glow),
     inset 0 0 0 0.15vmax var(--positive-glow);
 }
 
-.score-card--negative {
-  box-shadow:
-    0 0 1.5vmax 0.3vmax var(--negative-glow),
-    inset 0 0 0 0.15vmax var(--negative-glow);
+/* The scoreboard tile's single number. */
+.scoreboard-total {
+  font-size: 50cqmin;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* The transient "+N" beside the number. Must match REVEAL_GAIN_CHIP_MS (and so
+   FINAL_BEAT_MS, which the end-of-game view uses for +N and - P alike). */
+.gain-chip {
+  position: absolute;
+  top: 50%;
+  right: 4cqmin;
+  translate: 0 -50%;
+  padding: 1cqmin 3cqmin;
+  border-radius: var(--ui-radius);
+  background: var(--positive-bg);
+  font-size: 18cqmin;
+  font-weight: 800;
+  pointer-events: none;
+  animation: gain-chip 2.5s ease forwards;
+}
+
+/* The end-of-game penalty: the same chip, in the theme's negative colours. */
+.gain-chip--penalty {
+  background: var(--negative-bg);
+  box-shadow: 0 0 1.2cqmin 0.3cqmin var(--negative-glow);
+}
+
+/* `scale`, not `transform`, so the `translate` above is left alone. */
+@keyframes gain-chip {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  10% {
+    opacity: 1;
+    scale: 1;
+  }
+  80% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1;
+  }
 }
 
 /* One-shot radial burst for score increases - 10 pieces rotated evenly
@@ -576,7 +684,8 @@ h3 {
   grid-template-columns: 1fr;
 }
 
-.scoreboard-grid .score-card--readonly .score-content {
+.scoreboard-grid .score-card--readonly .score-content,
+.total-card--compact .score-content {
   cursor: default;
 }
 
@@ -596,6 +705,7 @@ h3 {
 }
 
 .score-content {
+  position: relative;
   padding: 0.8vmax;
   display: flex;
   flex-direction: column;
@@ -731,6 +841,12 @@ h3 {
   grid-template-rows: auto 1fr;
 }
 
+/* The projection's tile before its detail opens: name and one number, like a
+   scoreboard tile. After .total-card, same specificity. */
+.total-card--compact {
+  grid-template-columns: 1fr;
+}
+
 .grand-total {
   grid-column: 1;
   align-self: center;
@@ -833,40 +949,11 @@ h3 {
   font-size: 34cqmin;
 }
 
-/* End-of-game ceremony, first beat: the chip holds its cell but stays out of
-   sight, because .round-list is a centred wrap and a chip appearing a second in
-   would shove every round chip sideways to re-centre them. visibility rather
-   than opacity, so it is out of the accessibility tree too until it means
-   something. */
-.round-item--pending {
-  visibility: hidden;
-}
-
-/* Second beat. The period is CSS-only on purpose: the animation is infinite and
-   JS decides when it stops (FINAL_SETTLE_MS in projectionOrder.ts), so there is
-   no duration here to keep in lockstep. Background and shadow only - .round-list
-   clips its overflow, so a scale() would nibble the chip at the edge. */
-.round-item--pulsing {
-  animation: penalty-pulse 0.5s ease-in-out infinite;
-}
-
-@keyframes penalty-pulse {
-  0%,
-  100% {
-    background: color-mix(in srgb, var(--negative-bg) 32%, transparent);
-    box-shadow: none;
-  }
-  50% {
-    background: var(--negative-bg);
-    box-shadow: 0 0 1.2cqmin 0.3cqmin var(--negative-glow);
-  }
-}
-
-/* The odometer that counts the penalty off the grand total (ScoreRoll.vue): a
-   one-line window over a column of every value from gross down to net.
-   1em here is .grand-total's 24cqmin, so this stays inside the card's
+/* The odometer (ScoreRoll.vue): a one-line window over a column of every value
+   from one score to another, up for a gain and down for a penalty.
+   1em here is the parent's size (.grand-total's 24cqmin, or .scoreboard-total's), so this stays inside the card's
    container-query text sizing - it is not a viewport unit in disguise.
-   The transition duration must match FINAL_ROLL_MS in projectionOrder.ts. */
+   The transition duration must match REVEAL_ROLL_MS in projectionOrder.ts. */
 .score-roll {
   /* Above 1 because .grand-total sets line-height: 1, which clips the caps of
      some of the fonts the operator can choose. */
@@ -874,20 +961,71 @@ h3 {
   display: block;
   height: calc(var(--roll-line-height) * 1em);
   overflow: hidden;
+  position: relative;
 }
 
 .score-roll-track {
   display: block;
-  /* Not translateY(-100% * index): a percentage translate resolves against the
-     element's own height, and the track is every line tall. */
-  transform: translateY(calc(var(--roll-index, 0) * var(--roll-line-height) * -1em));
-  transition: transform 2s ease-in-out;
+  text-align: center;
+  /* A percentage of the track's own height, which is --roll-count lines tall:
+     index/count of it is exactly `index` lines. It must stay a percentage and
+     not become an `em` length: lengths resolve to px at computed-value time, so
+     resizing the tile (title-height slider, window, portrait) would change the
+     computed transform and run the 1.2s transition - the digit would float. */
+  transform: translateY(calc(var(--roll-index, 0) / var(--roll-count, 1) * -100%));
+  transition: transform 1.2s ease-in-out;
+}
+
+/* End-of-game convention (highOnTop): the highest value is the top line. A gain
+   rests on its bottom line and the column slides down to reveal higher values;
+   a penalty rests on its top line and the column slides up. Anchoring keeps the
+   start line framed while the column grows when `to` changes. */
+/* The track stays in flow (never position: absolute): an absolutely positioned
+   track contributes no width, and the shrink-wrapped tile around it collapsed to
+   0px, hiding every digit. Anchoring is done by the window instead: a flex column
+   whose items overflow towards the start when `justify-content: flex-end`, so a
+   gain's tall track grows upwards around its bottom line, and the transform that
+   follows (a percentage of the track, see above) is a real change from the idle
+   one-line state, which is what lets the roll run. */
+.score-roll--bottom,
+.score-roll--top {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-roll--bottom {
+  justify-content: flex-end;
+}
+
+.score-roll--bottom > .score-roll-track,
+.score-roll--top > .score-roll-track {
+  flex: none;
+  transform: translateY(calc(var(--roll-offset, 0) / var(--roll-count, 1) * 100%));
 }
 
 .score-roll-line {
   display: block;
   height: calc(var(--roll-line-height) * 1em);
   line-height: var(--roll-line-height);
+}
+
+/* Control window, total screen: a team whose detail is open on the projection. */
+.score-card--detail {
+  outline: 0.25vmax solid var(--button-bg);
+  outline-offset: -0.25vmax;
+}
+
+.detail-badge {
+  position: absolute;
+  top: 1cqmin;
+  right: 2cqmin;
+  z-index: 2;
+  padding: 0.5cqmin 2cqmin;
+  border-radius: var(--ui-radius);
+  background: var(--button-bg);
+  font-size: 6cqmin;
+  font-weight: 700;
+  pointer-events: none;
 }
 
 /* Control window, end-of-game reveal: a hit target over the whole card,

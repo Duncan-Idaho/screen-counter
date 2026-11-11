@@ -38,9 +38,21 @@ export const useGameStore = defineStore('game', () => {
   // orthogonal to `currentRound` on purpose: settling a round must not invent a
   // new, unplayed one.
   const settledRounds = useLocalStorage(storageKey('settled-rounds'), 0)
-  // Ids already revealed on the reveal screen, in click order. The projection
-  // window renders exactly these, sorted by settled score.
+  // Ids already revealed on the end-of-game total screen, in click order. The
+  // projection's total view shows every team from the start; these are the ones
+  // whose last-round gain and penalty have been played (and which keep the green
+  // glow). Round reveals use `roundRevealedIds` instead.
   const revealedIds = useLocalStorage<number[]>(storageKey('revealed'), [])
+  // Ids whose per-round detail is open on the total screen. Always a subset of
+  // `revealedIds` (a detail implies a reveal); toggled one id at a time, so each
+  // toggle is a single write and a single storage event.
+  const detailIds = useLocalStorage<number[]>(storageKey('detail'), [])
+  // Ids already revealed on the round reveal screen, in click order. A separate
+  // key from `revealedIds` because `endGame` must empty `revealedIds` before the
+  // screen turns over (or the total view mounts full), and from a reveal that
+  // write would drop the revealed tiles back to their pre-round total for one
+  // storage event on the frozen scoreboard. Two lists, no ambiguity.
+  const roundRevealedIds = useLocalStorage<number[]>(storageKey('round-revealed'), [])
   // One entry per round, index-aligned with every player's `scores` array (see
   // `ensureRound`). The store's only per-round state that isn't per-player.
   const roundThemes = useLocalStorage<string[]>(storageKey('round-themes'), [])
@@ -130,10 +142,11 @@ export const useGameStore = defineStore('game', () => {
       Math.max(0, Math.floor(Number(settledRounds.value) || 0)),
       currentRound.value + 1,
     )
-    revealedIds.value = normalizeRevealedIds(
-      revealedIds.value,
-      new Set(players.value.map((player) => player.id)),
-    )
+    const playerIds = new Set(players.value.map((player) => player.id))
+    revealedIds.value = normalizeRevealedIds(revealedIds.value, playerIds)
+    roundRevealedIds.value = normalizeRevealedIds(roundRevealedIds.value, playerIds)
+    // After `revealedIds`: a detail implies a reveal.
+    detailIds.value = normalizeRevealedIds(detailIds.value, new Set(revealedIds.value))
 
     if (!['setup', 'round', 'reveal', 'total', 'settings'].includes(screen.value)) {
       screen.value = 'setup'
@@ -171,6 +184,8 @@ export const useGameStore = defineStore('game', () => {
       currentRound.value = 0
       settledRounds.value = 0
       revealedIds.value = []
+      detailIds.value = []
+      roundRevealedIds.value = []
       roundThemes.value = []
       // Settings needs no players, so it survives an empty roster; the game
       // screens do not and fall back to setup.
@@ -223,6 +238,8 @@ export const useGameStore = defineStore('game', () => {
   function removePlayer(id: number) {
     players.value = players.value.filter((player) => player.id !== id)
     revealedIds.value = revealedIds.value.filter((revealedId) => revealedId !== id)
+    detailIds.value = detailIds.value.filter((detailId) => detailId !== id)
+    roundRevealedIds.value = roundRevealedIds.value.filter((revealedId) => revealedId !== id)
   }
 
   function resetScores() {
@@ -236,6 +253,8 @@ export const useGameStore = defineStore('game', () => {
     currentRound.value = 0
     settledRounds.value = 0
     revealedIds.value = []
+    detailIds.value = []
+    roundRevealedIds.value = []
     roundThemes.value = ['']
   }
 
@@ -259,6 +278,7 @@ export const useGameStore = defineStore('game', () => {
     }))
 
     revealedIds.value = []
+    detailIds.value = []
     openRound()
   }
 
@@ -356,30 +376,32 @@ export const useGameStore = defineStore('game', () => {
     adjustPenalty(playerId, -1)
   }
 
-  // Closes the round: its points become public (and so projectable), and the
-  // reveal starts over with every card hidden.
+  // Closes the round: its points become public, and the reveal starts over with
+  // every tile still showing its pre-round total.
   //
-  // The order of these three writes is load-bearing. A projection window
-  // receives each changed key as its own `storage` event and renders every
-  // intermediate combination, so publishing the round before the scoreboard has
-  // emptied would flash the whole round's results at the audience one event
-  // ahead of the reveal - the exact thing this feature exists to prevent.
+  // The scoreboard's number does not read `settledRounds` (see
+  // `getScoreboardScore`), so no order of these writes can leak or lower a
+  // total. The order still matters for one reason: the list is emptied FIRST so
+  // that, once the projection turns to 'reveal', no tile makes a "not revealed ->
+  // revealed" transition (which would fire every +N chip and confetti at once
+  // from a list left over from the previous round).
   function endRound() {
-    revealedIds.value = []
+    roundRevealedIds.value = []
     screen.value = 'reveal'
     settledRounds.value = currentRound.value + 1
   }
 
   // Both reveal surfaces go through here: the round reveal over that round's
-  // points, and the total screen's end-of-game reveal over the final scores.
-  // They share `revealedIds` because they never overlap - `endRound` and
-  // `endGame` each empty it on the way in.
+  // points (`roundRevealedIds`), and the total screen's end-of-game reveal over
+  // the final scores (`revealedIds`). Never the other list.
   function revealPlayer(playerId: number) {
     if (screen.value !== 'reveal' && screen.value !== 'total') {
       return
     }
 
-    if (revealedIds.value.includes(playerId)) {
+    const list = screen.value === 'reveal' ? roundRevealedIds : revealedIds
+
+    if (list.value.includes(playerId)) {
       return
     }
 
@@ -387,20 +409,21 @@ export const useGameStore = defineStore('game', () => {
       return
     }
 
-    revealedIds.value = [...revealedIds.value, playerId]
+    list.value = [...list.value, playerId]
   }
 
-  // `revealedIds` is deliberately left alone here - `endRound` is the only
-  // thing that clears it. Clearing it here would empty the projection's
-  // scoreboard for the one storage event before `projectionScreen` turns back
-  // to 'round', which reads as every card blinking out and straight back in.
+  // `roundRevealedIds` is deliberately left alone here: `endRound` clears it on
+  // the next entry, and outside a reveal the scoreboard ignores it. Every number
+  // on the scoreboard reads `currentRound`, so the writes of `openRound` never
+  // move a total that was already right.
   function nextRound() {
     openRound()
   }
 
-  // Ends the game and starts the final reveal: the total screen is the
-  // end-of-game ceremony, and "every card revealed" is simply its finished
-  // state, so it opens on a blank projection the way `endRound` does.
+  // Ends the game and opens the final view: the last round's reveal, with the
+  // penalties on top. The total screen opens FULL (every team, on its score
+  // from before the last round - see `getFinalStartScore`), and each click on
+  // the control window plays that team's gain and penalty.
   function endGame() {
     // Ending mid-round must still count the points tallied so far - but not
     // when the round is untouched (the usual case: the operator ends the game
@@ -411,18 +434,20 @@ export const useGameStore = defineStore('game', () => {
     // settles a second round on top of the one just revealed.
     const scored = players.value.some((player) => (player.scores[currentRound.value] ?? 0) > 0)
 
-    // The order of these writes is load-bearing, exactly as in `endRound`, and
-    // for two separate reasons.
-    //
-    // `revealedIds` first: the reveal screen leaves it full, so switching
-    // screens ahead of it would mount the total view with every team already
-    // revealed and print the whole podium at once.
-    //
-    // `settledRounds` last: until `screen` changes, the projection is still on
-    // the frozen scoreboard, which reads `getSettledScore` - publishing the
-    // round first would flash the points the operator has just tallied in
-    // private across every card, one storage event before the screen turns
-    // over. By the time it lands, the total view is up and empty.
+    // The order of these writes is load-bearing, exactly as in `endRound`.
+    // `roundRevealedIds` is emptied only when it does not describe THIS round
+    // (`nextRound` leaves the previous round's list behind): the final view
+    // would otherwise read a team as having already received a gain it never
+    // got. Outside a reveal the scoreboard ignores the list, so no frame
+    // changes. From a reveal the list is kept - the final view continues it.
+    // `detailIds` and `revealedIds` next, so the total view mounts with nothing
+    // played yet. `settledRounds` last: no number of the final view reads it
+    // (`getFinalStartScore` / `getFinalGain` read `currentRound`).
+    if (settledRounds.value <= currentRound.value) {
+      roundRevealedIds.value = []
+    }
+
+    detailIds.value = []
     revealedIds.value = []
     screen.value = 'total'
 
@@ -483,9 +508,10 @@ export const useGameStore = defineStore('game', () => {
 
   // End of game only, and the ONLY penalty-aware reading of the totals: the
   // total screen alone (TotalGrid.vue), for both the number it shows and the
-  // order it ranks by. `getTotalScore`, `getSettledScore` and `getRevealScore`
-  // must stay penalty-free, or the deduction leaks onto the round and reveal
-  // screens and onto the projection scoreboard before the game is over.
+  // order it ranks by. `getTotalScore`, `getSettledScore`, `getRevealScore`,
+  // `getScoreBeforeRound`, `getScoreboardScore`, `getFinalStartScore` and
+  // `getFinalGain` must stay penalty-free, or the deduction leaks onto the round
+  // and reveal screens and onto the projection scoreboard before the game is over.
   // Allowed to go negative on purpose: clamping the net at zero would hide the
   // difference between "penalised to nothing" and "penalised past nothing".
   function getFinalScore(player: Player) {
@@ -496,12 +522,74 @@ export const useGameStore = defineStore('game', () => {
     return revealedIds.value.includes(player.id)
   }
 
+  function isDetailOpen(player: Player) {
+    return detailIds.value.includes(player.id)
+  }
+
+  // Opens or closes one team's detail on the total screen. Only a team already
+  // revealed has one, and only on that screen.
+  function toggleDetail(playerId: number) {
+    if (screen.value !== 'total' || !revealedIds.value.includes(playerId)) {
+      return
+    }
+
+    detailIds.value = detailIds.value.includes(playerId)
+      ? detailIds.value.filter((id) => id !== playerId)
+      : [...detailIds.value, playerId]
+  }
+
+  // The list alone, for the control window's dimmed reveal cards.
+  function isRoundRevealed(player: Player) {
+    return roundRevealedIds.value.includes(player.id)
+  }
+
+  // Everything that precedes the round being scored. `currentRound` does not
+  // move during `endRound`, so this is stable whatever order the keys arrive in
+  // on a projection window. Penalty-free.
+  function getScoreBeforeRound(player: Player) {
+    return player.scores.slice(0, currentRound.value).reduce((sum, score) => sum + score, 0)
+  }
+
+  // Revealed in the projection scoreboard's sense: only during a reveal. Outside
+  // one, a stale list left by the previous round is ignored.
+  function isRevealedOnScoreboard(player: Player) {
+    return projectionScreen.value === 'reveal' && roundRevealedIds.value.includes(player.id)
+  }
+
+  // THE number on a scoreboard tile, and its sort key. The pre-round total until
+  // the team is revealed, plus the round's points after. Penalty-free, and it
+  // never reads `settledRounds`, so `endRound` changes nothing on screen in any
+  // intermediate state. The private tally (`scores[currentRound]`) is only read
+  // for a revealed team, and no tile is revealed during a round.
+  function getScoreboardScore(player: Player) {
+    return (
+      getScoreBeforeRound(player) +
+      (isRevealedOnScoreboard(player) ? getCurrentRoundScore(player) : 0)
+    )
+  }
+
+  // The number on a final-view tile before its click. Pivots on `currentRound`
+  // (the last round), never on `settledRounds`: `endGame` writes that last, so a
+  // number reading it would change between two storage events. A team already
+  // revealed at the round reveal keeps the gain it received there.
+  // `start + gain` is always the sum of rounds 0..currentRound. Penalty-free.
+  function getFinalStartScore(player: Player) {
+    return getScoreBeforeRound(player) + (isRoundRevealed(player) ? getCurrentRoundScore(player) : 0)
+  }
+
+  // What the click adds: zero when the team already received it at the round reveal.
+  function getFinalGain(player: Player) {
+    return isRoundRevealed(player) ? 0 : getCurrentRoundScore(player)
+  }
+
   return {
     players,
     currentRound,
     roundNumber,
     settledRounds,
     revealedIds,
+    detailIds,
+    roundRevealedIds,
     roundThemes,
     currentRoundTheme,
     settledRoundThemes,
@@ -535,5 +623,13 @@ export const useGameStore = defineStore('game', () => {
     getPenalty,
     getFinalScore,
     isRevealed,
+    isDetailOpen,
+    toggleDetail,
+    getFinalStartScore,
+    getFinalGain,
+    isRoundRevealed,
+    isRevealedOnScoreboard,
+    getScoreBeforeRound,
+    getScoreboardScore,
   }
 })

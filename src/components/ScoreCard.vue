@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore, type Player } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
+import LabeledNumber from './LabeledNumber.vue'
 
 // The control window's card, in both of its phases: `tally` while the round is
 // being scored (+/- controls, private points), `reveal` once it is closed (no
@@ -16,7 +17,7 @@ const { t } = useI18n({ useScope: 'global' })
 
 // Penalties are collected during the game but only applied at the end, so they
 // belong to the tally phase alone: the reveal card deliberately keeps showing
-// the exact pair of numbers the audience is about to see, and nothing else.
+// the two numbers of the round (points gained, settled total), and nothing else.
 const penaltiesOn = computed(() => props.mode === 'tally' && settings.penaltiesEnabled)
 const penalty = computed(() => game.getPenalty(props.player))
 </script>
@@ -26,7 +27,7 @@ const penalty = computed(() => game.getPenalty(props.player))
     class="score-card"
     :class="{
       'score-card--readonly': mode === 'reveal',
-      'score-card--revealed': mode === 'reveal' && game.isRevealed(player),
+      'score-card--revealed': mode === 'reveal' && game.isRoundRevealed(player),
     }"
   >
     <h3>{{ player.name }}</h3>
@@ -42,20 +43,20 @@ const penalty = computed(() => game.getPenalty(props.player))
       :aria-label="t('round.increment', { name: player.name })"
       @click="game.incrementScore(player.id)"
     >
-      <span class="round-score">{{ game.getCurrentRoundScore(player) }}</span>
+      <span class="round-score digits">{{ game.getCurrentRoundScore(player) }}</span>
       <!-- Sized off the setting, not off this team's penalty: keying it to
            `penalty > 0` made penalised cards carry a visibly smaller total than
            clean ones, leaving the grid ragged. Same reason TotalGrid splits its
            breakdown per grid rather than per player. -->
       <span class="total-line" :class="{ 'total-line--penalty': penaltiesOn }">
-        <span class="total-score">{{ t('round.total', { n: game.getTotalScore(player) }) }}</span>
-        <span v-if="penaltiesOn && penalty > 0" class="penalty-score">
+        <LabeledNumber keypath="round.total" :n="game.getTotalScore(player)" class="total-score" />
+        <span v-if="penaltiesOn && penalty > 0" class="penalty-score digits">
           {{ t('round.penalty', { n: penalty }) }}
         </span>
       </span>
     </button>
-    <!-- Reveal: the exact pair of numbers the audience is about to see, so the
-         operator reads the same card they are projecting. -->
+    <!-- Reveal: this round's gain and the settled total. The projection shows a
+         single number per tile instead; this is the operator's view. -->
     <button
       v-else
       type="button"
@@ -63,8 +64,8 @@ const penalty = computed(() => game.getPenalty(props.player))
       :aria-label="t('reveal.reveal', { name: player.name })"
       @click="game.revealPlayer(player.id)"
     >
-      <span class="round-score">{{ game.getRevealScore(player) }}</span>
-      <span class="total-score">{{ t('round.total', { n: game.getSettledScore(player) }) }}</span>
+      <span class="round-score digits">{{ game.getRevealScore(player) }}</span>
+      <LabeledNumber keypath="round.total" :n="game.getSettledScore(player)" class="total-score" />
     </button>
 
     <!-- Two pairs of identical glyphs, so colour and the heavier rule between

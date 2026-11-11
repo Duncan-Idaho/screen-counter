@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGameStore } from '@/stores/game'
+import LabeledNumber from './LabeledNumber.vue'
 import ScoreboardGrid from './ScoreboardGrid.vue'
 import TotalGrid from './TotalGrid.vue'
 
@@ -13,10 +15,12 @@ import TotalGrid from './TotalGrid.vue'
 //
 // The order of the branches matters: 'round' and 'reveal' share one
 // ScoreboardGrid instance, so moving from the reveal to the next round keeps
-// the very same cards mounted instead of remounting them - which would replay
-// every glow and confetti burst at once.
+// the very same cards mounted instead of remounting them.
 const game = useGameStore()
 const { t } = useI18n({ useScope: 'global' })
+
+// Only used to count characters, so the title can be sized to fill the banner.
+const title = computed(() => t('round.title', { n: game.roundNumber }))
 </script>
 
 <template>
@@ -31,18 +35,31 @@ const { t } = useI18n({ useScope: 'global' })
     <TotalGrid sorted revealing />
   </section>
 
-  <!-- A permanent header (round counter, plus the theme when one is set) so the
-       grid below never resizes as the operator types a theme mid-round - the
-       header row is always there, at a constant height, whether or not it has
-       a theme to show next to the round number. -->
-  <section v-else class="panel round-panel">
-    <header class="panel-header projection-header">
-      <div class="round-heading">
-        <h2>{{ t(game.projectionScreen === 'reveal' ? 'reveal.title' : 'round.title', { n: game.roundNumber }) }}</h2>
-        <span v-if="game.currentRoundTheme" class="theme-readonly">{{ game.currentRoundTheme }}</span>
-      </div>
+  <!-- A banner of fixed height (a setting, see --projection-banner-height) so the
+       grid below never resizes as the operator types a theme mid-round: only the
+       text shrinks inside it. The same "Round N" shows in round and reveal, so
+       nothing jumps between them. -->
+  <section v-else class="panel round-panel projection-round-panel">
+    <header
+      class="projection-banner"
+      :class="{ 'projection-banner--themed': !!game.currentRoundTheme }"
+    >
+      <LabeledNumber
+        keypath="round.title"
+        :n="game.roundNumber"
+        tag="h2"
+        class="projection-banner-title"
+        :style="{ '--chars': title.length }"
+      />
+      <p
+        v-if="game.currentRoundTheme"
+        class="projection-banner-theme"
+        :style="{ '--chars': game.currentRoundTheme.length }"
+      >
+        {{ game.currentRoundTheme }}
+      </p>
     </header>
 
-    <ScoreboardGrid :revealing="game.projectionScreen === 'reveal'" />
+    <ScoreboardGrid />
   </section>
 </template>

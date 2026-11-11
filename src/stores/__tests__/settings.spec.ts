@@ -272,4 +272,131 @@ describe('settings store', () => {
       expect(settings.penaltiesEnabled).toBe(false)
     })
   })
+  describe('digit font', () => {
+    it('defaults to empty and falls back to the text font in cssVars', () => {
+      const settings = useSettingsStore()
+
+      expect(settings.digitFont).toBe('')
+      expect(settings.cssVars['--app-digit-font']).toBe('var(--app-font)')
+    })
+
+    it('stores the normalized form and leaves the text font alone', () => {
+      const settings = useSettingsStore()
+
+      settings.setDigitFont('Comic Sans MS')
+
+      expect(settings.cssVars['--app-digit-font']).toBe('"Comic Sans MS"')
+      expect(settings.cssVars['--app-font']).toBe(DEFAULT_FONT)
+    })
+
+    it('ignores an invalid value', () => {
+      const settings = useSettingsStore()
+
+      settings.setDigitFont('Arial}body{color:red')
+
+      expect(settings.digitFont).toBe('')
+    })
+
+    it('persists under the screen-counter:digit-font key', async () => {
+      const first = useSettingsStore()
+      first.setDigitFont('Impact')
+      await nextTick()
+
+      expect(localStorage.getItem('screen-counter:digit-font')).toBe('Impact')
+
+      setActivePinia(createPinia())
+      expect(useSettingsStore().digitFont).toBe('Impact')
+    })
+
+    it('repairs a corrupt persisted value to the default', () => {
+      localStorage.setItem('screen-counter:digit-font', 'Arial}body{color:red')
+
+      expect(useSettingsStore().digitFont).toBe('')
+    })
+
+    it('normalizes a persisted family name', () => {
+      localStorage.setItem('screen-counter:digit-font', 'Segoe UI')
+
+      expect(useSettingsStore().digitFont).toBe('"Segoe UI"')
+    })
+
+    it('resets independently of the font and the theme', () => {
+      const settings = useSettingsStore()
+      settings.setFont('Georgia')
+      settings.setColor('text', '#112233')
+      settings.setDigitFont('Impact')
+
+      settings.resetDigitFont()
+
+      expect(settings.digitFont).toBe('')
+      expect(settings.font).toBe('Georgia')
+      expect(settings.theme.text).toBe('#112233')
+
+      settings.setDigitFont('Impact')
+      settings.resetFont()
+      settings.resetTheme()
+      expect(settings.digitFont).toBe('Impact')
+    })
+  })
+
+  describe('banner height', () => {
+    it('defaults to 33 and exposes it in dvh', () => {
+      const settings = useSettingsStore()
+
+      expect(settings.bannerHeight).toBe(33)
+      expect(settings.cssVars['--projection-banner-height']).toBe('33dvh')
+    })
+
+    it.each([
+      ['999', 50],
+      ['5', 10],
+      ['abc', 33],
+      ['40.6', 41],
+    ])('repairs a persisted %s to %i', (raw, expected) => {
+      localStorage.setItem('screen-counter:banner-height', raw)
+
+      expect(useSettingsStore().bannerHeight).toBe(expected)
+    })
+
+    it('clamps the setter and ignores NaN', () => {
+      const settings = useSettingsStore()
+
+      settings.setBannerHeight(0)
+      expect(settings.bannerHeight).toBe(10)
+      settings.setBannerHeight(100)
+      expect(settings.bannerHeight).toBe(50)
+      settings.setBannerHeight(Number.NaN)
+      expect(settings.bannerHeight).toBe(50)
+    })
+
+    it('resets without touching the theme, and the theme reset leaves it alone', () => {
+      const settings = useSettingsStore()
+      settings.setBannerHeight(20)
+      settings.resetTheme()
+      expect(settings.bannerHeight).toBe(20)
+
+      settings.resetBannerHeight()
+      expect(settings.bannerHeight).toBe(33)
+    })
+
+    it('persists and follows a storage event from another window', async () => {
+      const settings = useSettingsStore()
+      settings.setBannerHeight(25)
+      await nextTick()
+
+      expect(localStorage.getItem('screen-counter:banner-height')).toBe('25')
+
+      localStorage.setItem('screen-counter:banner-height', '40')
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'screen-counter:banner-height',
+          newValue: '40',
+          storageArea: localStorage,
+        }),
+      )
+      await nextTick()
+
+      expect(settings.cssVars['--projection-banner-height']).toBe('40dvh')
+    })
+  })
 })

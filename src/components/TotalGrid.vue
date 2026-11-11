@@ -3,26 +3,26 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useGameStore, type Player } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
 import { splitGrid } from '@/lib/grid'
-import {
-  FINAL_GROSS_HOLD_MS,
-  FINAL_SETTLE_MS,
-  sortByFinalScore,
-  type FinalPhase,
-} from '@/lib/projectionOrder'
+import { finalTimeline, sortByFinalScore, type FinalPhase } from '@/lib/projectionOrder'
 import TotalCard from './TotalCard.vue'
 
 // Shared by MainScreen's total screen and ProjectionScreen's total view. Only
 // ever shows settled rounds: the round in progress lives in the last `scores`
 // entry and must not reach the audience (see stores/game.ts).
 //
-// The total screen is also the end-of-game reveal, so this grid has two
-// populations the way ScoreboardGrid does - and three independent switches,
-// named for what they do rather than for the window that happens to set them:
+// The total screen is also the end-of-game view - the last round's reveal plus
+// the penalties - and has three independent switches, named for what they do
+// rather than for the window that happens to set them:
 //
-//   <TotalGrid selectable />        control window: every team, roster order,
-//                                   each card a reveal button
-//   <TotalGrid sorted revealing />  projection: the revealed teams only, ranked,
-//                                   each new card running the ceremony
+//   <TotalGrid selectable />        control window: every team, roster order, the
+//                                   full card always; a click reveals the team,
+//                                   the next ones toggle its detail
+//   <TotalGrid sorted revealing />  projection: every team from the start, ranked,
+//                                   one number per tile; each click runs that
+//                                   team's clock, then it can show its detail
+//
+// `revealing` no longer filters the population: it means "run the clock, and
+// show the compact tile until the team is settled".
 const props = defineProps<{ sorted?: boolean; revealing?: boolean; selectable?: boolean }>()
 
 const game = useGameStore()
@@ -37,8 +37,14 @@ function penaltyOf(player: Player) {
   return showPenalties.value ? game.getPenalty(player) : 0
 }
 
+// Gross = the sum of rounds 0..currentRound whatever `settledRounds` currently
+// holds (see getFinalStartScore), net of the penalty when the setting is on.
+function grossScore(player: Player) {
+  return game.getFinalStartScore(player) + game.getFinalGain(player)
+}
+
 function finalScore(player: Player) {
-  return showPenalties.value ? game.getFinalScore(player) : game.getSettledScore(player)
+  return grossScore(player) - penaltyOf(player)
 }
 
 // One cell per settled round, plus the penalty chip when one is shown. The
@@ -55,10 +61,10 @@ const breakdown = computed(() =>
 //
 // It lives here rather than in the card, which is a deliberate exception to the
 // rule that animation belongs to the card and fires on mount (ScoreboardCard).
-// The reorder is a *grid* concern: a freshly revealed team is ranked by its
-// gross score until the penalty lands and by its net score afterwards, and that
-// late switch of the sort key is precisely what makes the card slide down past
-// the teams it no longer beats.
+// The reorder is a *grid* concern: a team is ranked by its starting score until
+// its clock reaches 'settled' and by its net score afterwards, and that late
+// switch of the sort key is what makes the card slide to its net rank, all at
+// once, after the chips are gone.
 //
 // Seeded synchronously here, not in onMounted: ids already revealed when this
 // grid mounts (a reload, or a projection window opened mid-ceremony) have to be
@@ -74,12 +80,11 @@ function clearTimers(playerId: number) {
   timers.delete(playerId)
 }
 
-// 'enter' as the fallback, never 'settled': an id that has just arrived is then
-// already in its opening phase on the first render that contains it, whenever
-// the watcher below happens to run. The watcher only ever starts timers, so it
-// cannot be a frame late with the net score.
+// 'idle' as the fallback, never 'settled': an id that has just arrived is then
+// not yet net on the first render that contains it, whenever the watcher below
+// happens to run.
 function phaseOf(player: Player): FinalPhase {
-  return props.revealing ? (phases.value[player.id] ?? 'enter') : 'settled'
+  return props.revealing ? (phases.value[player.id] ?? 'idle') : 'settled'
 }
 
 watch(
@@ -94,23 +99,16 @@ watch(
         continue
       }
 
-      phases.value[id] = 'enter'
-
-      // No penalty to apply means nothing to pulse and nothing to count down,
-      // so the middle beat is skipped entirely rather than held empty. The chip
-      // appears at this same instant on the teams that do have one, so the
-      // shorter timeline discloses nothing early.
       const player = game.players.find((candidate) => candidate.id === id)
-      const penalty = player ? penaltyOf(player) : 0
+      const [first, ...rest] = finalTimeline(
+        player ? game.getFinalGain(player) : 0,
+        player ? penaltyOf(player) : 0,
+      )
 
+      phases.value[id] = first!.phase
       timers.set(
         id,
-        penalty > 0
-          ? [
-              setTimeout(() => (phases.value[id] = 'penalty'), FINAL_GROSS_HOLD_MS),
-              setTimeout(() => (phases.value[id] = 'settled'), FINAL_SETTLE_MS),
-            ]
-          : [setTimeout(() => (phases.value[id] = 'settled'), FINAL_GROSS_HOLD_MS)],
+        rest.map((step) => setTimeout(() => (phases.value[id] = step.phase), step.at)),
       )
     }
 
@@ -132,16 +130,14 @@ onUnmounted(() => {
   }
 })
 
-// Ranked by the same number the card displays - except while a card is still
-// mid-ceremony, when it is ranked by the gross score it is still showing. See
-// the clock above.
+// Ranked by the number the card ends on once settled, and by its starting score
+// before: no tile moves during +N or - P. See the clock above.
 function rankOf(player: Player) {
-  return phaseOf(player) === 'settled' ? finalScore(player) : game.getSettledScore(player)
+  return phaseOf(player) === 'settled' ? finalScore(player) : game.getFinalStartScore(player)
 }
 
 // Tiebreak for teams level on the net total, and read at the same phase as the
-// rank above: a card whose penalty has not landed yet is still showing a gross
-// score with no deduction, so it ties as though it had none. Using the real
+// rank above: a card that is not settled yet ties as though it had no penalty. Using the real
 // penalty here would drop it below a level rival before the chip has appeared
 // to explain why.
 function tiebreakOf(player: Player) {
@@ -150,13 +146,15 @@ function tiebreakOf(player: Player) {
 
 // MainScreen keeps the roster order it has always had, so the operator's cards
 // never move under their finger.
-const displayPlayers = computed(() => {
-  const shown = props.revealing
-    ? game.players.filter((player: Player) => game.isRevealed(player))
-    : game.players
+const displayPlayers = computed(() =>
+  props.sorted ? sortByFinalScore(game.players, rankOf, tiebreakOf) : game.players,
+)
 
-  return props.sorted ? sortByFinalScore(shown, rankOf, tiebreakOf) : shown
-})
+// The projection shows a team's detail only once it is settled, so a toggle
+// during the ceremony (the control has no clock) cannot cut the roll short.
+function detailOf(player: Player) {
+  return !props.revealing || (phaseOf(player) === 'settled' && game.isDetailOpen(player))
+}
 
 function settledScores(player: Player) {
   return player.scores.slice(0, game.settledRounds)
@@ -174,6 +172,9 @@ function settledScores(player: Player) {
       v-for="player in displayPlayers"
       :key="player.id"
       :player="player"
+      :start="game.getFinalStartScore(player)"
+      :gain="game.getFinalGain(player)"
+      :detail="detailOf(player)"
       :round-scores="settledScores(player)"
       :round-themes="game.settledRoundThemes"
       :penalty="penaltyOf(player)"
